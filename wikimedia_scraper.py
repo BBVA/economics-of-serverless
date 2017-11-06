@@ -8,7 +8,7 @@ import os
 def time_range(init, end):
     while init<end:
         yield init
-        init+=timedelta(hours=1)   
+        init+=timedelta(hours=1)
 
 def explode_time(date):
     return date, {
@@ -36,21 +36,26 @@ def explode_data_lines(line):
 
 def explode_data_files(dateurl):
     ( date, url ) = dateurl
-    
+
     file_name = 'cache/' + url.replace('/','_')
-    
+
     if not os.path.exists(file_name):
         os.makedirs('cache', exist_ok=True)
         with open(file_name, 'w') as f:
             f.write(requests.get(url).text)
         f.closed
-    
+
     with open(file_name, 'r') as f:
         file_content = f.read()
     f.closed
 
+    global USE_NOTEBOOK
+    if USE_NOTEBOOK:
+        global PROGRESS_BAR
+        PROGRESS_BAR.value += 1
+
     match_iter = DATALINE_REGEX.finditer(file_content)
-    
+
     for match in match_iter:
         yield {
             'project': match.group('project'),
@@ -61,14 +66,35 @@ def explode_data_files(dateurl):
 def filter_wikipedia_en(data):
     return data['project'] == 'en'
 
-DATALINE_REGEX = re.compile(r'^(?P<project>en|es) - (?P<hits>\d+)', re.MULTILINE)
-
-#for item in data_generator:
-#    print(item['date'], item['project'], item['hits'])
+def output_notebook():
+    global USE_NOTEBOOK
+    USE_NOTEBOOK = True
 
 def get_traffic_generator(start, end):
+    global USE_NOTEBOOK
+
+    try:
+        USE_NOTEBOOK
+    except NameError:
+        USE_NOTEBOOK = False
+    else:
+        pass
+
+    if USE_NOTEBOOK:
+        from ipywidgets import FloatProgress
+        from IPython.display import display
+
+        total_files = (end-start).total_seconds()/3600
+        global PROGRESS_BAR
+        PROGRESS_BAR = FloatProgress(min=0, max=total_files)
+        display(PROGRESS_BAR)
+
     exploded_dates = map(explode_time, time_range(start, end))
     dateurls = map(gen_dateurl, exploded_dates)
     data_generators = map(explode_data_files, dateurls)
     data_generator = reduce(chain, data_generators)
     return data_generator
+
+DATALINE_REGEX = re.compile(r'^(?P<project>en|es) - (?P<hits>\d+)', re.MULTILINE)
+#for item in data_generator:
+#    print(item['date'], item['project'], item['hits'])

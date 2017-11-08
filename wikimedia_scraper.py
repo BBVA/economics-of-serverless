@@ -70,10 +70,15 @@ def output_notebook():
     global USE_NOTEBOOK
     USE_NOTEBOOK = True
 
-def get_traffic_generator(start, end, **kwargs):
+def get_traffic_generator(start, end, projects=('en', )):
     global USE_NOTEBOOK
     global DATALINE_REGEX
-    DATALINE_REGEX = re.compile(r'^(?P<project>en|es) - (?P<hits>\d+)', re.MULTILINE)
+
+    projects='|'.join(list(projects))
+    DATALINE_REGEX = re.compile(
+        r'^(?P<project>{projects:s}) - (?P<hits>\d+)'.format(projects=projects),
+        re.MULTILINE
+    )
 
     try:
         USE_NOTEBOOK

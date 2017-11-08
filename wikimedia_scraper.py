@@ -70,8 +70,10 @@ def output_notebook():
     global USE_NOTEBOOK
     USE_NOTEBOOK = True
 
-def get_traffic_generator(start, end):
+def get_traffic_generator(start, end, **kwargs):
     global USE_NOTEBOOK
+    global DATALINE_REGEX
+    DATALINE_REGEX = re.compile(r'^(?P<project>en|es) - (?P<hits>\d+)', re.MULTILINE)
 
     try:
         USE_NOTEBOOK
@@ -95,6 +97,5 @@ def get_traffic_generator(start, end):
     data_generator = reduce(chain, data_generators)
     return data_generator
 
-DATALINE_REGEX = re.compile(r'^(?P<project>en|es) - (?P<hits>\d+)', re.MULTILINE)
 #for item in data_generator:
 #    print(item['date'], item['project'], item['hits'])

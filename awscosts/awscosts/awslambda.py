@@ -1,4 +1,4 @@
-class awslambda:
+class Lambda:
 
     _MILLION_REQS = 1000000
 

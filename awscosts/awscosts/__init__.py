@@ -1,3 +1,3 @@
-from .awslambda import awslambda
+from .awslambda import Lambda
 
-__all__ = ["awslambda"]
+__all__ = ["Lambda"]

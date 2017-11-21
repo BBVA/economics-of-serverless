@@ -1,0 +1,54 @@
+{
+  "t2.nano": {
+    "memory": "0.5",
+    "hourly_price": "0.0058"
+  },
+  "t2.micro": {
+    "memory": "1",
+    "hourly_price": "0.0116"
+  },
+  "t2.small": {
+    "memory": "2",
+    "hourly_price": "0.023"
+  },
+  "t2.medium": {
+    "memory": "4",
+    "hourly_price": "0.0464"
+  },
+  "t2.large": {
+    "memory": "8",
+    "hourly_price": "0.0928"
+  },
+  "t2.xlarge": {
+    "memory": "16",
+    "hourly_price": "0.1856"
+  },
+  "t2.2xlarge": {
+    "memory": "32",
+    "hourly_price": "0.3712"
+  },
+  "m4.large": {
+    "memory": "8",
+    "hourly_price": "0.1"
+  },
+  "m4.xlarge": {
+    "memory": "16",
+    "hourly_price": "0.2"
+  },
+  "m4.2xlarge": {
+    "memory": "32",
+    "hourly_price": "0.4"
+  },
+  "m4.4xlarge": {
+    "memory": "64",
+    "hourly_price": "0.8"
+  },
+  "m4.10xlarge": {
+    "memory": "160",
+    "hourly_price": "2"
+  },
+  "m4.16xlarge": {
+    "memory": "256",
+    "hourly_price": "3.2"
+  }
+}

@@ -85,7 +85,8 @@ class Lambda:
         self.remaining_free_reqs = reqs
         self.remaining_free_GB_s = GB_s
 
-    def __get_free_tier_discount(self, resources, remaining_resources):
+    @staticmethod
+    def __get_free_tier_discount(resources, remaining_resources):
         if remaining_resources > resources:
             ret = (0, remaining_resources-resources)
         else:

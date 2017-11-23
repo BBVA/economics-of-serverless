@@ -6,20 +6,20 @@ class EC2:
 
     def __init__(self, instance_type, MB_per_req=128):
 
-        (self.cost_per_hour, self.memory) = \
-            self.get_instance_data(instance_type)
+        (self._cost_per_hour, self._memory) = \
+            self._get_instance_data(instance_type)
 
-        self.max_requests = self.memory // int(MB_per_req)
+        self.max_requests = self._memory // int(MB_per_req)
 
     def __del__(self):
         pass
 
     @property
-    def memory(self):
+    def _memory(self):
         return self.__memory
 
-    @memory.setter
-    def memory(self, megabytes):
+    @_memory.setter
+    def _memory(self, megabytes):
         self.__memory = megabytes
 
     @property
@@ -31,15 +31,15 @@ class EC2:
         self.__max_requests = reqs
 
     @property
-    def cost_per_hour(self):
+    def _cost_per_hour(self):
         return self.__cost_per_hour
 
-    @cost_per_hour.setter
-    def cost_per_hour(self, dollars):
+    @_cost_per_hour.setter
+    def _cost_per_hour(self, dollars):
         self.__cost_per_hour = dollars
 
     @staticmethod
-    def get_instance_data(name):
+    def _get_instance_data(name):
         resource_path = '/'.join(('awscosts', 'awscosts', 'ec2prices.json'))
         data = json.load(open(resource_path))
         price = float(data[name]['hourly_price'])
@@ -48,5 +48,5 @@ class EC2:
 
     def get_hourly_cost(self, reqs):
         number_instances = math.ceil(reqs/self.max_requests)
-        cost = number_instances * self.cost_per_hour
+        cost = number_instances * self._cost_per_hour
         return cost

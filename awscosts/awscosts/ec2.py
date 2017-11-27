@@ -46,12 +46,21 @@ class EC2:
         memory = int(float(data[name]['memory']) * 1024)
         return price, memory
 
-    def get_hourly_cost(self, reqs):
-        # we assume here a uniform distribution of requests
-        cost = self.get_cost_per_second(reqs/3600) * 3600
-        return cost
+    def get_cost_per_second_and_instances(self, reqs):
+        instances = math.ceil(reqs/self.max_requests)
+        cost = instances * self._cost_per_hour / 3600
+        return cost, instances
 
     def get_cost_per_second(self, reqs):
-        number_instances = math.ceil(reqs/self.max_requests)
-        cost = number_instances * self._cost_per_hour / 3600
+        cost, _ = self.get_cost_per_second_and_instances(reqs)
+        return cost
+
+    def get_hourly_cost_and_instances(self, reqs):
+        # we assume here a uniform distribution of requests
+        cost, instances = \
+            self.get_cost_per_second_and_instances(reqs/3600)
+        return cost * 3600, instances
+
+    def get_hourly_cost(self, reqs):
+        cost, _ = self.get_hourly_cost_and_instances(reqs)
         return cost

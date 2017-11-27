@@ -6,7 +6,7 @@ class EC2:
 
     def __init__(self, instance_type, MB_per_req=128):
 
-        (self._cost_per_hour, self._memory) = \
+        self._cost_per_hour, self._memory = \
             self._get_instance_data(instance_type)
 
         self.max_requests = self._memory // int(MB_per_req)
@@ -44,7 +44,7 @@ class EC2:
         data = json.load(open(resource_path))
         price = float(data[name]['hourly_price'])
         memory = int(float(data[name]['memory']) * 1024)
-        return (price, memory)
+        return price, memory
 
     def get_hourly_cost(self, reqs):
         # we assume here a uniform distribution of requests

@@ -48,10 +48,10 @@ class EC2:
 
     def get_hourly_cost(self, reqs):
         # we assume here a uniform distribution of requests
-        cost = self.get_cost_in_a_second(reqs/3600) * 3600
+        cost = self.get_cost_per_second(reqs/3600) * 3600
         return cost
 
-    def get_cost_in_a_second(self, reqs):
+    def get_cost_per_second(self, reqs):
         number_instances = math.ceil(reqs/self.max_requests)
         cost = number_instances * self._cost_per_hour / 3600
         return cost

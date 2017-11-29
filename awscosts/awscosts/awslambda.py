@@ -2,10 +2,26 @@ class Lambda:
 
     _MILLION_REQS = 1000000
 
-    def __init__(self, MB_per_req=128, ms_per_req=100):
+    _LAMBDA_FLAVORS = (
+        128, 192, 256, 320, 384, 448, 512, 576,
+        640, 704, 768, 832, 896, 960, 1024, 1088,
+        1152, 1216, 1280, 1344, 1408, 1472, 1536
+    )
+
+    _PENALTY_TABLE = dict(zip(_LAMBDA_FLAVORS, [
+        16.6, 11.78, 8.19, 5.84, 4.75, 4.30, 3.87, 3.50,
+        3.14, 2.81, 2.54, 2.33, 2.16, 2.02, 1.89, 1.79,
+        1.68, 1.61, 1.54, 1.49, 1.45, 1.42, 1.40
+    ]))
+
+    def __init__(self, MB_per_req=128, ms_per_req=100, use_penalty=True):
 
         self.mem = MB_per_req
-        self.exec_time = ms_per_req
+
+        self.penalty = self._PENALTY_TABLE[self.mem]
+
+        # Exec time is calculated using penalty values from empirical table:
+        self.exec_time = ms_per_req*self.penalty if use_penalty else ms_per_req
 
         # Improvement: this data could be requested via AWS Costs API:
         self.cost_per_million_reqs = .20
@@ -18,13 +34,21 @@ class Lambda:
         pass
 
     @property
+    def penalty(self):
+        return self.__penalty_factor
+
+    @penalty.setter
+    def penalty(self, penalty):
+        self.__penalty_factor = penalty
+
+    @property
     def mem(self):
         return self.__mem_per_req
 
     @mem.setter
     def mem(self, megabytes):
         # TO-DO:comprobar que se mete un valor válido para una AWS lambda
-        self.__mem_per_req = megabytes
+        self.__mem_per_req = int(megabytes)
 
     @property
     def exec_time(self):

@@ -1,14 +1,16 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 from itertools import chain
 from functools import reduce
 import requests
 import re
 import os
 
+
 def time_range(init, end):
-    while init<end:
+    while init < end:
         yield init
-        init+=timedelta(hours=1)
+        init += timedelta(hours=1)
+
 
 def explode_time(date):
     return date, {
@@ -18,14 +20,16 @@ def explode_time(date):
         'hour': date.hour,
     }
 
+
 def gen_dateurl(x):
-    ( date, exploded_date ) = x
-    ( url_template ) = (
+    (date, exploded_date) = x
+    (url_template) = (
         'https://dumps.wikimedia.org/other/pageviews/'
         '{year}/{year}-{month:02d}/'
         'projectviews-{year}{month:02d}{day:02d}-{hour:02d}0000'
     )
     return date, url_template.format(**exploded_date)
+
 
 def explode_data_lines(line):
     m = DATALINE_REGEX.match(line)
@@ -34,10 +38,11 @@ def explode_data_lines(line):
         'hits': m.group('hits'),
     }
 
-def explode_data_files(dateurl):
-    ( date, url ) = dateurl
 
-    file_name = 'cache/' + url.replace('/','_')
+def explode_data_files(dateurl):
+    (date, url) = dateurl
+
+    file_name = 'cache/' + url.replace('/', '_')
 
     if not os.path.exists(file_name):
         os.makedirs('cache', exist_ok=True)
@@ -63,18 +68,21 @@ def explode_data_files(dateurl):
             'date': date,
         }
 
+
 def filter_wikipedia_en(data):
     return data['project'] == 'en'
+
 
 def output_notebook():
     global USE_NOTEBOOK
     USE_NOTEBOOK = True
 
+
 def get_traffic_generator(start, end, projects=('en', )):
     global USE_NOTEBOOK
     global DATALINE_REGEX
 
-    projects='|'.join(list(projects))
+    projects = '|'.join(list(projects))
     DATALINE_REGEX = re.compile(
         r'^(?P<project>{projects:s}) - (?P<hits>\d+)'.format(projects=projects),
         re.MULTILINE
@@ -102,5 +110,5 @@ def get_traffic_generator(start, end, projects=('en', )):
     data_generator = reduce(chain, data_generators)
     return data_generator
 
-#for item in data_generator:
+# for item in data_generator:
 #    print(item['date'], item['project'], item['hits'])

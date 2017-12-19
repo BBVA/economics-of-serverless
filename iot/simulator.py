@@ -23,7 +23,8 @@ def time_walker(start: datetime, delta_in_seconds: int, end: datetime):
 
 def devices_generator(number_of_devices: int, max_delta_in_seconds: int):
     """
-    Must generate the devices parking represented by their time delta from start period window.
+    Must generate the devices parking represented by their time delta from
+    start period window.
     It will return constantly the same numbers at infinite.
 
     :param number_of_devices:
@@ -53,7 +54,8 @@ def devices_growth(devices, growth_function):
 
 def devices_date_stamper(devices):
     """
-    Return a function that given a date time will return the dates when devices will make their requests.
+    Return a function that given a date time will return the dates when devices
+    will make their requests.
 
     :param devices:
     :return:
@@ -67,7 +69,8 @@ def devices_date_stamper(devices):
 
 def resolution_period_finder(start: datetime, resolution_period_in_seconds: int):
     """
-    Return a function that given any date will give you the resolution period in datetime.
+    Return a function that given any date will give you the resolution period
+    in datetime.
 
     :return:
     """
@@ -93,11 +96,9 @@ if __name__ == '__main__':
     request_period_generator = time_walker(start, request_period_in_seconds, end)
     resolution_finder = resolution_period_finder(start, resolution_period)
 
-
     def growth_function(current_devices, i):
         ni = int(math.floor(i * 0.01))
         return current_devices + [randint(0, request_period_in_seconds - 1) for _ in range(0, ni)], i + ni
-
 
     devices_growth_generator = devices_growth(devices, growth_function)
     stamper = devices_date_stamper(devices_growth_generator)

@@ -36,7 +36,7 @@ def devices_generator(number_of_devices: int, max_delta_in_seconds: int):
         yield devices
 
 
-def devices_growth(devices, growth_function):
+def devices_growth_generator(devices, growth_function):
     """
     generator, every time you call will growth
 
@@ -100,8 +100,8 @@ if __name__ == '__main__':
         ni = int(math.floor(i * 0.01))
         return current_devices + [randint(0, request_period_in_seconds - 1) for _ in range(0, ni)], i + ni
 
-    devices_growth_generator = devices_growth(devices, growth_function)
-    stamper = devices_date_stamper(devices_growth_generator)
+    devices_with_growth = devices_growth_generator(devices, growth_function)
+    stamper = devices_date_stamper(devices_with_growth)
 
     # flatMap = map + reduce
     all_request = reduce(chain, map(stamper, request_period_generator), iter([]))

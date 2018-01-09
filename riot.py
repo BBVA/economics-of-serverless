@@ -86,7 +86,7 @@ def main():
 	freq_list=[60,3600, 8*3600, 24*3600]
 	devices_list=[10,100,1000,10000,100000,1000000]
 	for p in freq_list:
-		for n in range(0,100000):
+		for n in devices_list:
 			model = new_model(n,p,30,60,128,200)
 			df = costs(model,generate(model))
 			print(df["hits"].sum(),df["lambda_cost"].sum(),df["ec2_cost"].sum(), p)

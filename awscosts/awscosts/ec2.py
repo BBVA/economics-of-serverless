@@ -9,7 +9,13 @@ class EC2:
         self._cost_per_hour, self._memory = \
             self._get_instance_data(instance_type)
 
-        self.max_requests = self._memory // int(MB_per_req)
+        self.max_concurrent_requests = self._memory // int(MB_per_req)
+
+    def __init__(self, instance_type, max_concurrent_requests):
+
+        self._cost_per_hour, self.memory = \
+            self._get_instance_data(instance_type)
+        self.max_concurrent_requests = max_concurrent_requests
 
     def __del__(self):
         pass
@@ -23,12 +29,12 @@ class EC2:
         self.__memory = megabytes
 
     @property
-    def max_requests(self):
-        return self.__max_requests
+    def max_concurrent_requests(self):
+        return self.__max_concurrent_requests
 
-    @max_requests.setter
-    def max_requests(self, reqs):
-        self.__max_requests = reqs
+    @max_concurrent_requests.setter
+    def max_concurrent_requests(self, reqs):
+        self.__max_concurrent_requests = reqs
 
     @property
     def _cost_per_hour(self):
@@ -47,7 +53,7 @@ class EC2:
         return price, memory
 
     def get_instances(self, reqs):
-        return math.ceil(reqs/self.max_requests)
+        return math.ceil(reqs/self.max_concurrent_requests)
 
     def get_cost_per_second(self, reqs):
         return self.get_instances(reqs) * self._cost_per_hour / 3600

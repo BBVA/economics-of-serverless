@@ -82,19 +82,19 @@ class Model(object):
     MB_per_req = 0
     ms_per_req = 0
     myLambda = ""
-    myEC2 = ""
+    myEC2 = None
 
-    def __init__(self, n, p, s, e, r, pr, mr, mb, ms):
+    def __init__(self, n, period, start, end, resolution, instance_type, EC2_MB_per_req, lambda_MB_per_req, lambda_ms_per_req):
         self.device_number = n
-        self.request_period_in_seconds = p
-        self.period_start = s
-        self.period_end = e
-        self.resolution_in_seconds = r
-        self.MB_per_req = mb
-        self.ms_per_req = ms
+        self.request_period_in_seconds = period
+        self.period_start = start
+        self.period_end = end
+        self.resolution_in_seconds = resolution
+        self.MB_per_req = lambda_MB_per_req
+        self.ms_per_req = lambda_ms_per_req
 
-        self.myLambda = Lambda(mb, ms)
-        self.myEC2 = EC2(pr, mr)
+        self.myLambda = Lambda(lambda_MB_per_req, lambda_ms_per_req)
+        self.myEC2 = EC2(instance_type, EC2_MB_per_req)
 
 
 def new_model(n, p, d, r, i, mr, mb, ms):
@@ -182,29 +182,32 @@ class DateTimeEncoder(json.JSONEncoder):
 def main():
     ec2_instances = get_ec2_prices()
     req_freq_list = [3600, 8 * 3600, 24 * 3600]
-    device_count_list = [10, 100, 1000, 10000, 100000, 1000000, 10000000]
+    device_count_list = [10, 100, 1000, 10000, 100000,
+                         1000000, 10000000, 100000000, 1000000000, 10000000000]
     print("df_len,hits,lambda,ec2,freq,instance_count")
     for freq in req_freq_list:
         for device_count in device_count_list:
-            instance = ec2_instances['m4.4xlarge']
+            instances = (
+                ec2_instances['t2.large'], ec2_instances['m4.large'], ec2_instances['m4.4xlarge'])
             resolution_in_seconds = 60
             period_in_days = 30
             lambda_memory = 128
             request_duration_ms = 200
-
-            max_concurrent_requests = get_ec2_max_concurrent_reqs(instance, lambda_memory, resolution_in_seconds)
-            model = new_model(device_count, freq, period_in_days, resolution_in_seconds, instance, max_concurrent_requests, lambda_memory, request_duration_ms)
-
-            # print(json.dumps(model.__dict__,
-            #                cls=DateTimeEncoder, indent=2, sort_keys=True))
-
-            df = costs(model, generate(model))
-            v = df.tail(1).index.item()
-            result = [len(df.index), df["hits"].sum(), df.get_value(v, 'lambda_cost'),
-                  df["ec2_cost"].sum(), freq, df['instances'].max()]
 			
-            print(','.join(map(str, result)))
-            # print(df.tail())
+            for instance in instances:
+                max_concurrent_requests = get_ec2_max_concurrent_reqs(instance, lambda_memory, resolution_in_seconds)
+                model = new_model(device_count, freq, period_in_days, resolution_in_seconds, instance, max_concurrent_requests, lambda_memory, request_duration_ms)
+                # print(json.dumps(model.__dict__,
+                #                cls=DateTimeEncoder, indent=2, sort_keys=True))
+
+                df = costs(model, generate(model))
+                v = df.tail(1).index.item()
+                result = [len(df.index), df["hits"].sum(), df.get_value(v, 'lambda_cost'),
+                         df["ec2_cost"].sum(), freq, df['instances'].max()]
+
+                print(','.join(map(str, result)))
+				
+                # print(df.tail())
 
 
 if __name__ == "__main__":

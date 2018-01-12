@@ -122,10 +122,10 @@ class Lambda:
         if date.day == 1 and date.hour == 0:
             self.reset_free_tier_counters()
 
+        compute_GB_s = reqs * self.mem/1024 * self.exec_time/1000
+
         (reqs, self.remaining_free_reqs) = \
             self.__get_free_tier_discount(reqs, self.remaining_free_reqs)
-
-        compute_GB_s = reqs * self.mem/1024 * self.exec_time/1000
 
         (compute_GB_s, self.remaining_free_GB_s) = \
             self.__get_free_tier_discount(

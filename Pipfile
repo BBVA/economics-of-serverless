@@ -9,6 +9,8 @@ name = "pypi"
 
 requests = "*"
 awscosts = "*"
+pandas = "*"
+numpy = "*"
 
 
 [dev-packages]

@@ -17,7 +17,8 @@ class Lambda:
     def __init__(self, MB_per_req=128, ms_per_req=100, use_penalty=False,
                  use_free_tier=True):
 
-        self.mem = MB_per_req
+        # Select the lambda flavor that fits the amount of MB_per_req
+        self.mem = min(x for x in self._LAMBDA_FLAVORS if x >= MB_per_req)
 
         self.penalty = self._PENALTY_TABLE[self.mem]
 
@@ -31,7 +32,7 @@ class Lambda:
         if use_free_tier:
             self.free_tier = (self._MILLION_REQS, 400000)
         else:
-            self.free_tier = (0,0)
+            self.free_tier = (0, 0)
 
         self.reset_free_tier_counters()
 

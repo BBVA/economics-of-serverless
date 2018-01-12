@@ -14,7 +14,8 @@ class Lambda:
         1.68, 1.61, 1.54, 1.49, 1.45, 1.42, 1.40
     ]))
 
-    def __init__(self, MB_per_req=128, ms_per_req=100, use_penalty=False):
+    def __init__(self, MB_per_req=128, ms_per_req=100, use_penalty=False,
+                 use_free_tier=True):
 
         self.mem = MB_per_req
 
@@ -27,7 +28,11 @@ class Lambda:
         self.cost_per_million_reqs = .20
         self.cost_per_GB_s = 0.00001667
 
-        self.free_tier = (self._MILLION_REQS, 400000)
+        if use_free_tier:
+            self.free_tier = (self._MILLION_REQS, 400000)
+        else:
+            self.free_tier = (0,0)
+
         self.reset_free_tier_counters()
 
     def __del__(self):
@@ -118,8 +123,11 @@ class Lambda:
 
         return ret
 
-    def get_cost(self, reqs, date=None):
-        if date is not None:
+    def get_cost(self, reqs, date=None, reset_free_tier=False):
+        # Reset free tier counters if requested, or if 1st day of month
+        if reset_free_tier:
+            self.reset_free_tier_counters()
+        elif date is not None:
             if date.day == 1 and date.hour == 0:
                 self.reset_free_tier_counters()
 

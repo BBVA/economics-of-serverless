@@ -10,50 +10,7 @@ from random import randint
 from datetime import timedelta
 from iot.simulator import *
 
-
-# https://aws.amazon.com/lambda/pricing/?nc1=h_ls
-class Lambda(object):
-    price_per_million_reqs = .20
-    price_per_GB_s = .00001667
-    free_tier_reqs = 1000000
-    free_tier_GB_s = 400000
-    ms_per_req = 0
-    mem = 0
-
-    valid_lambda_mem = set(list([
-        128, 192, 256, 320, 384, 448, 512, 576,
-        640, 704, 768, 832, 896, 960, 1024, 1088,
-        1152, 1216, 1280, 1344, 1408, 1472, 1536
-    ]))
-
-    def __init__(self, mem=128, ms_per_req=100):
-        self.mem = mem
-        if mem not in self.valid_lambda_mem:
-            self.mem = 128
-
-        self.ms_per_req = ms_per_req
-
-    def _costs_compute(self, reqs):
-        # Total compute (seconds) = 3M * (1s) = 3,000,000 seconds
-        total_compute_seconds = reqs * self.ms_per_req / 1000
-        # Total compute (GB-s) = 3,000,000 * 512MB/1024 = 1,500,000 GB-s
-        total_compute_gb_s = total_compute_seconds * self.mem / 1024
-        # Total compute – Free tier compute = Monthly billable compute GB- s
-        total_compute = total_compute_gb_s - self.free_tier_GB_s
-
-        return max(0, total_compute * self.price_per_GB_s)
-
-    def _costs_request(self, reqs):
-
-        # Total requests – Free tier requests = Monthly billable requests
-        monthly_billable_requests = reqs - self.free_tier_reqs
-        # 3M requests – 1M free tier requests = 2M Monthly billable requests
-        # 1,500,000 GB-s – 400,000 free tier GB-s = 1,100,000 GB-s
-
-        return max(0, (monthly_billable_requests * self.price_per_million_reqs) / 1000000)
-
-    def cost(self, reqs):
-        return self._costs_compute(reqs) + self._costs_request(reqs)
+import awscosts
 
 
 class EC2(object):
@@ -96,7 +53,7 @@ def new_model(num_devices, request_period, num_days, resolution, ec2_price_per_h
     today = datetime.today()
     period_start = datetime(today.year, 1, 1)
     period_end = period_start + timedelta(days=num_days)
-    lambda_instance = Lambda(lambda_mb_per_req, lambda_ms_per_req)
+    lambda_instance = awscosts.Lambda(lambda_mb_per_req, lambda_ms_per_req)
     ec2_instance = EC2(ec2_price_per_hour, ec2_max_concurrent_reqs)
     return Model(num_devices, request_period, period_start, period_end, resolution, lambda_instance, ec2_instance)
 
@@ -137,7 +94,7 @@ def costs(model, df):
         nonlocal acc
         reqs = x['hits']
         hours = model.resolution_in_seconds / 3600
-        lc = model.lambda_instance.cost(acc)
+        lc = model.lambda_instance.get_cost(acc, reset_free_tier=True)
         ni = max(1, model.ec2_instance.get_n_instances(reqs))
         ec = model.ec2_instance.cost(hours) * ni
         acc = acc + x['hits']

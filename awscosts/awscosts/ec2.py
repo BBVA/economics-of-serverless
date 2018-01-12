@@ -3,19 +3,33 @@ import math
 
 
 class EC2:
+    """AWS EC2 price object, used to calculate costs.
 
-    def __init__(self, instance_type, MB_per_req=128):
+    Note:
+        max_concurrent_reqs and MB_per_request are mutually exclusive.
 
+    Args:
+        instance_type (str): EC2 instance flavor (e.g. "t2.micro")
+        max_concurrent_reqs (int): Maximum number of requests that this
+            instance can process per second.
+        MB_per_req (float): Size in Megabytes of a request.
+        ms_per_req (float): Duration in ms of a request.
+    """
+    def __init__(self, instance_type, **kwargs):
         self._cost_per_hour, self._memory = \
             self._get_instance_data(instance_type)
 
-        self.max_concurrent_requests = self._memory // int(MB_per_req)
-
-    def __init__(self, instance_type, max_concurrent_requests):
-
-        self._cost_per_hour, self.memory = \
-            self._get_instance_data(instance_type)
-        self.max_concurrent_requests = max_concurrent_requests
+        if 'max_concurrent_reqs' in kwargs:
+            self.max_concurrent_reqs = kwargs['max_concurrent_reqs']
+        elif 'MB_per_req' and 'ms_per_req' in kwargs:
+            reqs_per_second = \
+                float(kwargs['MB_per_req']) / float(kwargs['ms_per_req'])
+            self.max_concurrent_reqs = \
+                self._memory / reqs_per_second
+        else:
+            error_text = "Either max_concurrent_reqs, or \
+                        (MB_per_req and ms_per_req) needs to be set."
+            raise ValueError(error_text)
 
     def __del__(self):
         pass
@@ -29,12 +43,12 @@ class EC2:
         self.__memory = megabytes
 
     @property
-    def max_concurrent_requests(self):
-        return self.__max_concurrent_requests
+    def max_concurrent_reqs(self):
+        return self.__max_concurrent_reqs
 
-    @max_concurrent_requests.setter
-    def max_concurrent_requests(self, reqs):
-        self.__max_concurrent_requests = reqs
+    @max_concurrent_reqs.setter
+    def max_concurrent_reqs(self, reqs):
+        self.__max_concurrent_reqs = reqs
 
     @property
     def _cost_per_hour(self):
@@ -53,7 +67,7 @@ class EC2:
         return price, memory
 
     def get_instances(self, reqs):
-        return math.ceil(reqs/self.max_concurrent_requests)
+        return math.ceil(reqs/self.max_concurrent_reqs)
 
     def get_cost_per_second(self, reqs):
         return self.get_instances(reqs) * self._cost_per_hour / 3600

@@ -28,7 +28,7 @@ class EC2:
                 self._memory / reqs_per_second
         else:
             error_text = "Either max_concurrent_reqs, or \
-                        (MB_per_req and ms_per_req) needs to be set."
+                        (MB_per_request and ms_per_req) needs to be set."
             raise ValueError(error_text)
 
     def __del__(self):
@@ -66,11 +66,11 @@ class EC2:
         memory = int(float(data[name]['memory']) * 1024)
         return price, memory
 
-    def get_instances(self, reqs):
+    def get_num_instances(self, reqs):
         return math.ceil(reqs/self.max_concurrent_reqs)
 
     def get_cost_per_second(self, reqs):
-        return self.get_instances(reqs) * self._cost_per_hour / 3600
+        return self.get_num_instances(reqs) * self._cost_per_hour / 3600
 
     def get_cost_per_minute(self, reqs):
         # we assume here a uniform distribution of requests

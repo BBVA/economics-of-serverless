@@ -3,3 +3,4 @@
 .ipynb_checkpoints/
 cache/
 __pycache__/
+.vscode

@@ -1,5 +1,18 @@
 class Lambda:
+    """AWS Lambda price object, used to calculate costs.
 
+    Args:
+        MB_per_req (int): memory consumed for this lambda. If not among AWS' lambda
+            flavors, the selected flavor will be the minimum to fit the
+            function. Defaults to 128 MB.
+        ms_per_req (int): time (in miliseconds) that the function needs to run.
+            Defaults to 100ms.
+        use_penalty (bool, optional): Flag to apply performance penalty
+            based on the selected flavor. Defaults to `False`.
+        use_free_tier (bool, optional): Flag to control whether to use AWS free
+            tier each new month (or manually when calling `get_cost`). Defaults
+            to `True`.
+    """
     _MILLION_REQS = 1000000
 
     _LAMBDA_FLAVORS = (
@@ -66,6 +79,7 @@ class Lambda:
 
     @property
     def free_tier(self):
+        """list of int: tuple with free reqs and GB-s for each tier."""
         return (self.__free_reqs, self.__free_compute_GB_s)
 
     @free_tier.setter
@@ -117,14 +131,46 @@ class Lambda:
 
     @staticmethod
     def __get_free_tier_discount(resources, remaining_resources):
+        """Given a tuple with a `resource` (reqs or GB-s), and the remaining
+        (free) counter of that resource, it substracts the `resources`
+
+        Note: One of the two returning params will be 0:
+        - in the first case, there will still be free resources
+        - in the second case, no free resources will be left.
+
+        Args:
+            resources (int): reqs or GB-s to be substracted
+            remaining_resources (int): remaining free reqs or GB-s from the
+                free tier
+
+        Returns:
+            {
+                'resources' (int): resources with cost,
+                'remaining_resources' (int): new remaining free resources
+            }
+        """
         if remaining_resources > resources:
-            ret = (0, remaining_resources-resources)
+            ret = (0, remaining_resources - resources)
         else:
-            ret = (resources-remaining_resources, 0)
+            ret = (resources - remaining_resources, 0)
 
         return ret
 
     def get_cost(self, reqs, date=None, reset_free_tier=False):
+        """Calculates the cost of the given requests.
+
+        Args:
+            reqs (int): number of requests to bill.
+            date (:obj:`datetime.date`, optional): day of the requests. Related
+                with free tier calculation (resets counter if midnight of the
+                first day of month)
+            reset_free_tier (bool, optional): flag to reset the free tier
+                counter before calculate the costs.
+
+        Returns:
+            float: price (in original currency) to bill for the requests.
+
+        """
         # Reset free tier counters if requested, or if 1st day of month
         if reset_free_tier:
             self.reset_free_tier_counters()
@@ -132,7 +178,7 @@ class Lambda:
             if date.day == 1 and date.hour == 0:
                 self.reset_free_tier_counters()
 
-        compute_GB_s = reqs * self.mem/1024 * self.exec_time/1000
+        compute_GB_s = reqs * self.mem / 1024 * self.exec_time / 1000
 
         (reqs, self.remaining_free_reqs) = \
             self.__get_free_tier_discount(reqs, self.remaining_free_reqs)
@@ -140,7 +186,7 @@ class Lambda:
         (compute_GB_s, self.remaining_free_GB_s) = \
             self.__get_free_tier_discount(
                 compute_GB_s, self.remaining_free_GB_s
-            )
+        )
 
         return (reqs / self._MILLION_REQS) * self.cost_per_million_reqs + \
             compute_GB_s * self.cost_per_GB_s

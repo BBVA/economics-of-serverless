@@ -6,15 +6,15 @@ class EC2:
     """AWS EC2 price object, used to calculate costs.
 
     Note:
-        max_reqs_per_second and MB_per_request are mutually exclusive.
-        max_reqs_per_second takes precedence over the others
+        `max_reqs_per_second` and `MB_per_request` are mutually exclusive.
+        `max_reqs_per_second` takes precedence over the other two.
 
     Args:
-        instance_type (str): EC2 instance flavor (e.g. "t2.micro")
-        max_reqs_per_second (int): Maximum number of requests that this
-            instance can process per second.
-        MB_per_req (float): Size in Megabytes of a request.
-        ms_per_req (float): Duration in ms of a request.
+        instance_type (str): EC2 instance flavor (e.g. ``t2.micro``).
+        **max_reqs_per_second (int, optional): Maximum number of requests that
+            this instance can process per second.
+        **MB_per_req (float, optional): Size in Megabytes of a request.
+        **ms_per_req (int, optional): Duration in ms of a request.
     """
     def __init__(self, instance_type, **kwargs):
         self._cost_per_hour, self._memory = \
@@ -39,6 +39,7 @@ class EC2:
 
     @property
     def _memory(self):
+        """int: EC2 instance RAM (Megabytes)"""
         return self.__memory
 
     @_memory.setter

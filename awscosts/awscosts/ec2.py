@@ -69,6 +69,19 @@ class EC2:
     def get_num_instances(self, reqs):
         return math.ceil(reqs/self.max_concurrent_reqs)
 
+    def get_cost_and_num_instances(self, seconds, **kwargs):
+        if 'reqs' in kwargs:
+            num_instances = self.get_num_instances(float(kwargs['reqs']))
+        else:
+            num_instances = 1
+
+        cost = num_instances * seconds * self._cost_per_hour / 3600
+        return (cost, num_instances)
+
+    def get_cost(self, seconds):
+        (cost, _) = self.get_cost_and_num_instances(seconds)
+        return cost
+
     def get_cost_per_second(self, reqs):
         return self.get_num_instances(reqs) * self._cost_per_hour / 3600
 

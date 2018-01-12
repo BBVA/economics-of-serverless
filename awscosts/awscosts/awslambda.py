@@ -118,9 +118,10 @@ class Lambda:
 
         return ret
 
-    def get_cost_per_hour(self, date, reqs):
-        if date.day == 1 and date.hour == 0:
-            self.reset_free_tier_counters()
+    def get_cost(self, reqs, date=None):
+        if date is not None:
+            if date.day == 1 and date.hour == 0:
+                self.reset_free_tier_counters()
 
         compute_GB_s = reqs * self.mem/1024 * self.exec_time/1000
 
@@ -131,5 +132,6 @@ class Lambda:
             self.__get_free_tier_discount(
                 compute_GB_s, self.remaining_free_GB_s
             )
+
         return (reqs / self._MILLION_REQS) * self.cost_per_million_reqs + \
             compute_GB_s * self.cost_per_GB_s

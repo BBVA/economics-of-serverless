@@ -74,40 +74,37 @@ class EC2(object):
 
 
 class Model(object):
-    device_number = 0
+    num_devices = 0
     request_period_in_seconds = 0
     period_start = 0
     period_end = 0
     resolution_in_seconds = 0
-    MB_per_req = 0
-    ms_per_req = 0
-    myLambda = ""
-    myEC2 = None
+    lambda_instance = None
+    ec2_instance = None
 
-    def __init__(self, n, period, start, end, resolution, instance_type, EC2_MB_per_req, lambda_MB_per_req, lambda_ms_per_req):
-        self.device_number = n
-        self.request_period_in_seconds = period
-        self.period_start = start
-        self.period_end = end
+    def __init__(self, num_devices, request_period, period_start, period_end, resolution, lambda_instance, ec2_instance):
+        self.num_devices = num_devices
+        self.request_period_in_seconds = request_period
+        self.period_start = period_start
+        self.period_end = period_end
         self.resolution_in_seconds = resolution
-        self.MB_per_req = lambda_MB_per_req
-        self.ms_per_req = lambda_ms_per_req
-
-        self.myLambda = Lambda(lambda_MB_per_req, lambda_ms_per_req)
-        self.myEC2 = EC2(instance_type, EC2_MB_per_req)
+        self.lambda_instance = lambda_instance
+        self.ec2_instance = ec2_instance
 
 
-def new_model(n, p, d, r, i, mr, mb, ms):
+def new_model(num_devices, request_period, num_days, resolution, ec2_price_per_hour, ec2_max_concurrent_reqs, lambda_mb_per_req, lambda_ms_per_req):
     today = datetime.today()
-    start = datetime(today.year, 1, 1)
-    end = start + timedelta(days=d)
-    return Model(n, p, start, end, r, i['hourly_price'], mr, mb, ms)
+    period_start = datetime(today.year, 1, 1)
+    period_end = period_start + timedelta(days=num_days)
+    lambda_instance = Lambda(lambda_mb_per_req, lambda_ms_per_req)
+    ec2_instance = EC2(ec2_price_per_hour, ec2_max_concurrent_reqs)
+    return Model(num_devices, request_period, period_start, period_end, resolution, lambda_instance, ec2_instance)
 
 
 def generate(model):
     # Create device fleet generator (lazy generates a collection of time deltas)
     devices = devices_generator(
-        model.device_number, model.request_period_in_seconds)
+        model.num_devices, model.request_period_in_seconds)
 
     # Create a generator for device periodic requests
     request_period_generator = time_walker(
@@ -140,9 +137,9 @@ def costs(model, df):
         nonlocal acc
         reqs = x['hits']
         hours = model.resolution_in_seconds / 3600
-        lc = model.myLambda.cost(acc)
-        ni = max(1, model.myEC2.get_n_instances(reqs))
-        ec = model.myEC2.cost(hours) * ni
+        lc = model.lambda_instance.cost(acc)
+        ni = max(1, model.ec2_instance.get_n_instances(reqs))
+        ec = model.ec2_instance.cost(hours) * ni
         acc = acc + x['hits']
         return x['date'], x['hits'], acc, lc, ec, ni
 
@@ -196,7 +193,7 @@ def main():
 			
             for instance in instances:
                 max_concurrent_requests = get_ec2_max_concurrent_reqs(instance, lambda_memory, resolution_in_seconds)
-                model = new_model(device_count, freq, period_in_days, resolution_in_seconds, instance, max_concurrent_requests, lambda_memory, request_duration_ms)
+                model = new_model(device_count, freq, period_in_days, resolution_in_seconds, instance['hourly_price'], max_concurrent_requests, lambda_memory, request_duration_ms)
                 # print(json.dumps(model.__dict__,
                 #                cls=DateTimeEncoder, indent=2, sort_keys=True))
 

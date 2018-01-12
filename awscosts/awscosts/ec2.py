@@ -77,7 +77,7 @@ class EC2:
         cost = self.get_cost_per_second(reqs/60) * 60
         return cost
 
-    def get_hourly_cost(self, reqs):
+    def get_cost_per_hour(self, reqs):
         # we assume here a uniform distribution of requests
         cost = self.get_cost_per_second(reqs/3600) * 3600
         return cost

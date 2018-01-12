@@ -118,7 +118,7 @@ class Lambda:
 
         return ret
 
-    def get_hourly_cost(self, date, reqs):
+    def get_cost_per_hour(self, date, reqs):
         if date.day == 1 and date.hour == 0:
             self.reset_free_tier_counters()
 

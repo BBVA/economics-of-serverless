@@ -12,6 +12,7 @@ awscosts = "*"
 pandas = "*"
 numpy = "*"
 "52ab930" = {path = "awscosts", editable = true}
+pytest = "*"
 
 
 [dev-packages]

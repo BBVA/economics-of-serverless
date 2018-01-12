@@ -7,6 +7,7 @@ class EC2:
 
     Note:
         max_reqs_per_second and MB_per_request are mutually exclusive.
+        max_reqs_per_second takes precedence over the others
 
     Args:
         instance_type (str): EC2 instance flavor (e.g. "t2.micro")
@@ -21,7 +22,7 @@ class EC2:
 
         if 'max_reqs_per_second' in kwargs:
             self.max_reqs_per_second = kwargs['max_reqs_per_second']
-        elif 'MB_per_req' and 'ms_per_req' in kwargs:
+        elif 'MB_per_req' in kwargs and 'ms_per_req' in kwargs:
 
             req_size = float(kwargs['MB_per_req'])
             req_time = float(kwargs['ms_per_req']) / 1000
@@ -74,7 +75,7 @@ class EC2:
         return price, memory
 
     def get_num_instances(self, reqs):
-        return math.ceil(reqs/self.max_reqs_per_second)
+        return math.ceil(reqs / self.max_reqs_per_second)
 
     def get_cost_and_num_instances(self, seconds, reqs=None):
 
@@ -95,10 +96,10 @@ class EC2:
 
     def get_cost_per_minute(self, reqs):
         # we assume here a uniform distribution of requests
-        cost = self.get_cost_per_second(reqs/60) * 60
+        cost = self.get_cost_per_second(reqs / 60) * 60
         return cost
 
     def get_cost_per_hour(self, reqs):
         # we assume here a uniform distribution of requests
-        cost = self.get_cost_per_second(reqs/3600) * 3600
+        cost = self.get_cost_per_second(reqs / 3600) * 3600
         return cost

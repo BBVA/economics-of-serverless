@@ -14,7 +14,7 @@ class Lambda:
         1.68, 1.61, 1.54, 1.49, 1.45, 1.42, 1.40
     ]))
 
-    def __init__(self, MB_per_req=128, ms_per_req=100, use_penalty=True):
+    def __init__(self, MB_per_req=128, ms_per_req=100, use_penalty=False):
 
         self.mem = MB_per_req
 

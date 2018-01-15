@@ -72,7 +72,7 @@ def generate_requests_time_serie(num_devices, request_period, interval_start, in
     return requests_by_resolution
 
 
-def calculate_costs_by_resolution(resolution, lambda_instance, ec2_instances_list, request_time_serie):
+def calculate_costs_by_resolution(resolution, ec2_instances_list, request_time_serie):
 
     acc_hits = 0
 
@@ -88,13 +88,12 @@ def calculate_costs_by_resolution(resolution, lambda_instance, ec2_instances_lis
         nonlocal acc_hits
         num_hits = row[1]
         acc_hits = acc_hits + num_hits
-        lambda_cost = lambda_instance.get_cost(acc_hits, date=row[0], reset_free_tier=False)
         ec2_costs = calc_ec2_use(ec2_instances_list, num_hits, resolution)
-        return (row[0], num_hits, acc_hits, lambda_cost) + ec2_costs
+        return (row[0], num_hits, acc_hits) + ec2_costs
 
     return map(calc_use, request_time_serie)
 
-def aggregate_costs(ec2_instances_list, costs_time_serie):
+def aggregate_costs(lambda_instance, ec2_instances_list, costs_time_serie):
 
     costs = {'length':0, 'hits':0, 'lambda':0}
 
@@ -104,13 +103,14 @@ def aggregate_costs(ec2_instances_list, costs_time_serie):
     def acc(costs, row):
         costs['length'] = costs['length'] + 1
         costs['hits'] = costs['hits'] + row[1]
-        costs['lambda'] = row[3]
         for idx in range(len(ec2_instances_list)):
-            costs[f'ec2_{idx}_cost'] = costs[f'ec2_{idx}_cost'] + row[4+idx][1]
-            costs[f'ec2_{idx}_instances'] = max(costs[f'ec2_{idx}_instances'], row[4+idx][0])
+            costs[f'ec2_{idx}_cost'] = costs[f'ec2_{idx}_cost'] + row[3+idx][1]
+            costs[f'ec2_{idx}_instances'] = max(costs[f'ec2_{idx}_instances'], row[3+idx][0])
         return costs
 
-    return reduce(acc, costs_time_serie, costs)
+    aggregated = reduce(acc, costs_time_serie, costs)
+    aggregated['lambda'] = lambda_instance.get_cost(aggregated['hits'], reset_free_tier=True)
+    return aggregated
 
 def build_interval(num_days):
     today = datetime.today()
@@ -121,7 +121,7 @@ def build_interval(num_days):
 def main():
 
     ec2_flavors = ('t2.large', 'm4.large', 'm4.4xlarge')
-    req_period_list = [3600, 8 * 3600, 24 * 3600]
+    req_period_list = [3600, 8* 3600, 24 * 3600]
     num_devices_list = [10, 100, 1000, 10000, 100000,
                         1000000, 10000000, 100000000, 1000000000, 10000000000]
     resolution_in_seconds = 60
@@ -137,8 +137,8 @@ def main():
         for num_devices in num_devices_list:
             lambda_instance = awscosts.Lambda(lambda_memory, lambda_request_duration_ms)
             requests_time_serie = generate_requests_time_serie(num_devices, req_period, interval_start, interval_end, resolution_in_seconds)
-            costs_time_serie = calculate_costs_by_resolution(resolution_in_seconds, lambda_instance, ec2_instances, requests_time_serie)
-            print(aggregate_costs(ec2_instances, costs_time_serie))
+            costs_time_serie = calculate_costs_by_resolution(resolution_in_seconds, ec2_instances, requests_time_serie)
+            print(aggregate_costs(lambda_instance, ec2_instances, costs_time_serie))
 
 if __name__ == "__main__":
     main()

@@ -1,14 +1,9 @@
-import json
-import pandas as pd
-
-from datetime import datetime
 from functools import reduce
 from itertools import groupby, chain
-from datetime import timedelta
+from datetime import datetime, timedelta
 from iot.simulator import *
 
 import awscosts
-
 
 class Model(object):
     num_devices = 0
@@ -43,21 +38,29 @@ def new_model(num_devices, request_period, num_days, resolution,
                  resolution, lambda_instance, ec2_instance)
 
 
-def generate(model):
+def generate_requests_time_serie(num_devices, request_period, interval_start, interval_end, resolution):
+    """
+    Generates a time serie of requests based on some model information.
+
+    :param num_devices: the number of IoT devices.
+    :param request_period_in_seconds: the request period in seconds. Indicates how often each device sends requests.
+    :param interval_start: the starting date of the interval of the distribution.
+    :param interval_end: the ending date of the interval of the distribution.
+    :param resolution: the resolution of the time serie in seconds.
+    :return: a map function able to materialize a list of tuples with a datetime and the sum of hits from every device (i.e: [('2018-01-01 00:00:01', 23), (, 43)...]).
+    """
+
     # Create device fleet generator (lazy generates a collection of time deltas)
-    devices = devices_generator(
-        model.num_devices, model.request_period_in_seconds)
+    devices = devices_generator(num_devices, request_period)
 
     # Create a generator for device periodic requests
-    request_period_generator = time_walker(
-        model.period_start, model.request_period_in_seconds, model.period_end)
+    request_period_generator = time_walker(interval_start, request_period, interval_end)
 
     # Create a "stamper" that fixes deltas into actual datetime stamps for a specific period
     stamper = devices_date_stamper(devices)
 
     # Create a function that returns the t0 of a period for a given time
-    resolution_finder = resolution_period_finder(
-        model.period_start, model.resolution_in_seconds)
+    resolution_finder = resolution_period_finder(interval_start, resolution)
 
     # flatMap = map + reduce
     all_requests = reduce(chain, map(
@@ -66,76 +69,79 @@ def generate(model):
     requests_by_resolution = map(lambda x: (
         x[0], len(list(x[1]))), groupby(all_requests, resolution_finder))
 
-    return pd.DataFrame.from_records(list(requests_by_resolution), index='date', columns=['date', 'hits'])
+    return requests_by_resolution
 
 
-def costs(model, df):
+def calculate_costs_by_resolution(resolution, lambda_instance, ec2_instances_list, request_time_serie):
 
-    df['date'] = df.index
+    acc_hits = 0
 
-    acc = 0
+    def calc_ec2_use(ec2_instances_list, num_hits, resolution):
+        return tuple(chain([calc_ec2_instance_use(instance, num_hits, resolution) for instance in ec2_instances_list]))
 
-    def myl(x):
-        nonlocal acc
-        reqs = x['hits']
-        lc = model.lambda_instance.get_cost(acc, reset_free_tier=True)
-        ni = max(1, model.ec2_instance.get_num_instances(
-            reqs/model.resolution_in_seconds))
-        ec = model.ec2_instance.get_cost(model.resolution_in_seconds) * ni
-        acc = acc + x['hits']
-        return x['date'], x['hits'], acc, lc, ec, ni
+    def calc_ec2_instance_use(ec2_instance, num_hits, resolution):
+        num_instances = max(1, ec2_instance.get_num_instances(num_hits/resolution))
+        cost = ec2_instance.get_cost(resolution) * num_instances
+        return (num_instances, cost)
 
-    df['hits_acc'] = 0
-    df['lambda_cost'] = 0
-    df['ec2_cost'] = 0
-    df['instances'] = 0
-    df[['date', 'hits', 'hits_acc', 'lambda_cost',
-        'ec2_cost', 'instances']] = df.apply(myl, axis=1)
+    def calc_use(row):
+        nonlocal acc_hits
+        num_hits = row[1]
+        lambda_cost = lambda_instance.get_cost(acc_hits, reset_free_tier=True)        
+        ec2_costs = calc_ec2_use(ec2_instances_list, num_hits, resolution)
+        acc_hits = acc_hits + num_hits # TODO esto no va antes?
+        return (row[0], num_hits, acc_hits, lambda_cost) + ec2_costs
 
-    return df
+    return map(calc_use, request_time_serie)
 
+def aggregate_costs(ec2_instances_list, costs_time_serie):
+    
+    costs = {'length':0, 'hits':0, 'lambda':0}
 
-class DateTimeEncoder(json.JSONEncoder):
-    def default(self, o):
-        if isinstance(o, datetime):
-            return o.isoformat()
-        if isinstance(o, Lambda):
-            return o.__dict__
-        if isinstance(o, EC2):
-            return o.__dict__
+    for idx in range(len(ec2_instances_list)):
+        costs.update({f'ec2_{idx}_cost':0, f'ec2_{idx}_instances':0})
 
-        return json.JSONEncoder.default(self, o)
+    def acc(costs, row):
+        costs['length'] = costs['length'] + 1
+        costs['hits'] = costs['hits'] + row[1]
+        costs['lambda'] = row[3]
+        for idx in range(len(ec2_instances_list)):
+            costs[f'ec2_{idx}_cost'] = costs[f'ec2_{idx}_cost'] + row[4+idx][1]
+            costs[f'ec2_{idx}_instances'] = max(costs[f'ec2_{idx}_instances'], row[4+idx][0])
+        return costs
+        
+    return reduce(acc, costs_time_serie, costs)
 
+def build_interval(num_days):
+    today = datetime.today()
+    interval_start = datetime(today.year, 1, 1)
+    interval_end = interval_start + timedelta(days=num_days)
+    return (interval_start, interval_end)
 
 def main():
-    req_freq_list = [3600, 8 * 3600, 24 * 3600]
-    device_count_list = [10, 100, 1000, 10000, 100000,
+
+    ec2_flavors = ('t2.large', 'm4.large', 'm4.4xlarge')
+    req_period_list = [3600, 8 * 3600, 24 * 3600]
+    num_devices_list = [10, 100, 1000, 10000, 100000,
                          1000000, 10000000, 100000000, 1000000000, 10000000000]
-    print("df_len,hits,lambda,ec2,freq,instance_count")
-    for freq in req_freq_list:
-        for device_count in device_count_list:
-            flavors = ('t2.large', 'm4.large', 'm4.4xlarge')
-            resolution_in_seconds = 60
-            period_in_days = 30
-            lambda_memory = 128
-            request_duration_ms = 200
+    resolution_in_seconds = 60
+    num_days = 30
+    lambda_memory = 128
+    lambda_request_duration_ms = 200
+    interval_start, interval_end = build_interval(num_days)
+    lambda_instance = awscosts.Lambda(lambda_memory, lambda_request_duration_ms)
+    ec2s = [awscosts.EC2(flavor, MB_per_req=lambda_memory, ms_per_req=lambda_request_duration_ms) for flavor in ec2_flavors]
+          
+    print("len, hits, lambda, ec2, resolution, instance_count")
 
-            for flavor in flavors:
-                model = new_model(device_count, freq, period_in_days,
-                                  resolution_in_seconds,
-                                  flavor, lambda_memory,
-                                  request_duration_ms)
-                # print(json.dumps(model.__dict__,
-                #                cls=DateTimeEncoder, indent=2, sort_keys=True))
+    for req_period in req_period_list:
+        for num_devices in num_devices_list:
 
-                df = costs(model, generate(model))
-                v = df.tail(1).index.item()
-                result = [len(df.index), df["hits"].sum(), df.get_value(v, 'lambda_cost'),
-                         df["ec2_cost"].sum(), freq, df['instances'].max()]
+            requests_time_serie = generate_requests_time_serie(num_devices, req_period, interval_start, interval_end, resolution_in_seconds)
+            
+            costs_time_serie = calculate_costs_by_resolution(resolution_in_seconds, lambda_instance, ec2s, requests_time_serie)
 
-                print(','.join(map(str, result)))
-                # print(df.tail())
-
+            print(aggregate_costs(ec2s, costs_time_serie))
 
 if __name__ == "__main__":
     main()

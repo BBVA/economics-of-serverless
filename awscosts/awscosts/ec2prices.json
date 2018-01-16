@@ -27,6 +27,10 @@
     "memory": "32",
     "hourly_price": "0.3712"
   },
+  "m3.medium": {
+    "memory": "3.5",
+    "hourly_price": "0.067"
+  },
   "m4.large": {
     "memory": "8",
     "hourly_price": "0.1"

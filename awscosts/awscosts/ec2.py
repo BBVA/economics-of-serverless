@@ -17,6 +17,7 @@ class EC2:
         **ms_per_req (int, optional): Duration in ms of a request.
     """
     def __init__(self, instance_type, **kwargs):
+        self.__instance_type = instance_type
         self._cost_per_hour, self._memory = \
             self._get_instance_data(instance_type)
 
@@ -45,6 +46,10 @@ class EC2:
     @_memory.setter
     def _memory(self, megabytes):
         self.__memory = megabytes
+
+    @property
+    def _instance_type(self):
+        return self.__instance_type
 
     @property
     def max_reqs_per_second(self):

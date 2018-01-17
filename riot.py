@@ -1,6 +1,10 @@
 from functools import reduce, partial
+from itertools import accumulate
 from iot.simulator import *
 from random import randint
+import plotly
+import plotly.plotly as py
+import plotly.graph_objs as go
 
 import awscosts
 
@@ -52,11 +56,90 @@ def aggregate_costs(req_period, resolution, interval_duration, num_devices, lamb
     
     return costs
 
+def draw_costs_by_num_devices(costs, num_devices_list, ec2_flavors, req_period):
+
+    data = []
+
+    lambda_trace = go.Scatter(
+        x=num_devices_list,
+        y=[cost['lambda'] for cost in costs],
+        name='Lambda'
+    )
+    data.append(lambda_trace)
+
+    for flavor in ec2_flavors:
+        trace = go.Scatter(
+            x=num_devices_list,
+            y=[cost[f'ec2_{flavor}_cost'] * cost[f'ec2_{flavor}_instances'] for cost in costs],
+            name=f'EC2 {flavor}'
+        )
+        data.append(trace)
+
+    layout = go.Layout(
+        title=f'Cost by number of devices (request period: {req_period} seconds)',
+        legend=dict(orientation="h"),
+        xaxis=dict(
+            title='Number of devices',
+            type='log',
+            autorange=True
+        ),
+        yaxis=dict(
+            title='Cost ($)'
+        )
+    )
+
+    fig = go.Figure(data=data, layout=layout)
+    plotly.offline.plot(fig)
+
+def draw_costs_by_num_reqs(costs, ec2_flavors, req_period):
+
+    data = []
+
+    lambda_trace = go.Scatter(
+        x=[cost['hits'] for cost in costs],
+        y=[cost['lambda'] for cost in costs],
+        name='Lambda'
+    )
+    data.append(lambda_trace)
+
+    for flavor in ec2_flavors:
+        trace = go.Scatter(
+            x=[cost['hits'] for cost in costs],
+            y=[cost[f'ec2_{flavor}_cost'] * cost[f'ec2_{flavor}_instances'] for cost in costs],
+            name=f'EC2 {flavor}'
+        )
+        data.append(trace)
+
+    layout = go.Layout(
+        title=f'Cost by number of requests (request period: {req_period} seconds)',
+        legend=dict(orientation="h"),
+        xaxis=dict(
+            title='Number of reqs/second',
+            type='log',
+            autorange=True
+        ),
+        yaxis=dict(
+            title='Cost ($)'
+        )
+    )
+
+    fig = go.Figure(data=data, layout=layout)
+    plotly.offline.plot(fig)
+
 def main():
+
+    def devices_func(acc, i):
+        if i % 2 == 0:
+            acc.append(acc[i-1] * 2)
+        else:
+            acc.append(acc[i-1] * 5)
+        return acc
 
     ec2_flavors = ('m3.medium', 'm4.large', 'm4.4xlarge')
     req_period_list = [3600, 8* 3600, 24 * 3600]
-    num_devices_list = [10, 100, 1000, 10000, 100000, 1000000, 10000000]
+    #[10, 50, 100, 500, 1000, 5000, 10000, 50000, 100000, 500000, 1000000, 5000000, 10000000]
+    num_devices_list = reduce(devices_func, range(1,13), [10])
+
     resolution = 60 # in seconds
     interval_duration = 30 * 24 * 3600 # one month in seconds
     lambda_memory = 128
@@ -64,10 +147,18 @@ def main():
     ec2_instances = [awscosts.EC2(flavor, MB_per_req=lambda_memory, ms_per_req=lambda_request_duration_ms) for flavor in ec2_flavors]
 
     for req_period in req_period_list:
+        costs = []
         for num_devices in num_devices_list:
             lambda_instance = awscosts.Lambda(lambda_memory, lambda_request_duration_ms)
             time_serie = generate_requests_time_serie(num_devices, req_period, interval_duration, resolution)
-            print(aggregate_costs(req_period, resolution, interval_duration, num_devices, lambda_instance, ec2_instances, time_serie))
+            cost = aggregate_costs(req_period, resolution, interval_duration, num_devices, lambda_instance, ec2_instances, time_serie)
+
+            print(cost)
+
+            costs.append(cost)
+
+        draw_costs_by_num_devices(costs, num_devices_list, ec2_flavors, req_period)
+        draw_costs_by_num_reqs(costs, ec2_flavors, req_period)
 
 if __name__ == "__main__":
     main()

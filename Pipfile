@@ -11,6 +11,8 @@ requests = "*"
 awscosts = "*"
 pandas = "*"
 numpy = "*"
+plotly = "*"
+
 "52ab930" = {path = "awscosts", editable = true}
 pytest = "*"
 

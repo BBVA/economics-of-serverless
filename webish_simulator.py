@@ -59,7 +59,7 @@ def get_cost(
         MB_per_request=128,
         ms_per_req=200,
         max_reqs_per_second=1000,
-        instance_type='t2.large'
+        instance_type='m3.medium'
 ):
 
     mylambda = awscosts.Lambda(
@@ -87,5 +87,7 @@ def get_cost(
     )
     df['lambda_sum'] = df.lambda_cost.cumsum()
     df['ec2_sum'] = df.ec2_cost.cumsum()
+
+    df.round({'lambda_cost': 2, 'ec2_cost': 2, 'lambda_sum': 2, 'ec2_sum': 2})
 
     return df

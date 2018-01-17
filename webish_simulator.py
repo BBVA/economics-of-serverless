@@ -56,9 +56,10 @@ def simulate(df: pd.DataFrame, monthly_scale_factor=None):
 
 def get_cost(
         df: pd.DataFrame,
-        MB_per_request=512,
+        MB_per_request=128,
         ms_per_req=200,
-        max_reqs_per_second=1000
+        max_reqs_per_second=1000,
+        instance_type='t2.large'
 ):
 
     mylambda = awscosts.Lambda(
@@ -66,7 +67,7 @@ def get_cost(
         ms_per_req=ms_per_req
     )
     myec2 = awscosts.EC2(
-        instance_type='t2.large',
+        instance_type=instance_type,
         max_reqs_per_second=max_reqs_per_second
     )
 

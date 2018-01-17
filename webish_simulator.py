@@ -8,18 +8,9 @@ import pandas as pd
 import datetime
 import numpy as np
 
-# IMMEDIATE TODO: have lunch and then extract the cost calculations into its own
-# function
 
-def simulate(
-        df: pd.DataFrame,
-        monthly_scale_factor=None,
-        MB_per_request=512,
-        ms_per_req=200,
-        max_reqs_per_second=1000
-    ):
-    # need to convert types to avoid a INF value while computing mean value
-    # (too big number?)
+def simulate(df: pd.DataFrame, monthly_scale_factor=None):
+
     # prepare DF fields
     df['hits'] = df['hits'].astype(float)
     df['weekday'] = df.index.weekday_name
@@ -60,6 +51,16 @@ def simulate(
         month_df = month_df.round({'requests': 0})
         month_df['requests'] = month_df['requests'].astype(int)
 
+    return month_df
+
+
+def get_cost(
+        df: pd.DataFrame,
+        MB_per_request=512,
+        ms_per_req=200,
+        max_reqs_per_second=1000
+):
+
     mylambda = awscosts.Lambda(
         MB_per_req=MB_per_request,
         ms_per_req=ms_per_req
@@ -69,21 +70,21 @@ def simulate(
         max_reqs_per_second=max_reqs_per_second
     )
 
-    month_df['lambda_cost'] = month_df.apply(
+    df['lambda_cost'] = df.apply(
         lambda x: mylambda.get_cost(reqs=x['requests']),
         axis=1
     )
 
-    month_df['ec2_cost'] = month_df.apply(
+    df['ec2_cost'] = df.apply(
         lambda x: myec2.get_cost_and_num_instances(3600, reqs=x['requests'])[0],
         axis=1
     )
 
-    month_df['instances'] = month_df.apply(
+    df['instances'] = df.apply(
         lambda x: myec2.get_num_instances(reqs=x['requests'] / 3600),
         axis=1
     )
-    month_df['lambda_sum'] = month_df.lambda_cost.cumsum()
-    month_df['ec2_sum'] = month_df.ec2_cost.cumsum()
+    df['lambda_sum'] = df.lambda_cost.cumsum()
+    df['ec2_sum'] = df.ec2_cost.cumsum()
 
-    return month_df
+    return df

@@ -29,3 +29,8 @@ def test_normalization(df=output_df):
 
 def test_scale_factor(df=output_df):
     assert df['requests'].sum() == monthly_hits
+
+
+def test_costs(df=output_df):
+    output_df = ws.get_cost(df)
+    assert type(output_df) == pd.DataFrame

@@ -8,8 +8,16 @@ import pandas as pd
 import datetime
 import numpy as np
 
+# IMMEDIATE TODO: have lunch and then extract the cost calculations into its own
+# function
 
-def simulate(df: pd.DataFrame, monthly_scale_factor=None):
+def simulate(
+        df: pd.DataFrame,
+        monthly_scale_factor=None,
+        MB_per_request=512,
+        ms_per_req=200,
+        max_reqs_per_second=1000
+    ):
     # need to convert types to avoid a INF value while computing mean value
     # (too big number?)
     # prepare DF fields
@@ -31,7 +39,7 @@ def simulate(df: pd.DataFrame, monthly_scale_factor=None):
 
         # Create a list of average hits for each hour in a given weekday:
         hitmeans = df.loc[df['weekday'] == day].groupby('hour')['hits'].mean()
-        aux_df['requests'] = np.array(hitmeans)
+        aux_df['requests'] = np.array(hitmeans).round().astype(int)
         startdate += datetime.timedelta(days=1)
         week_df = pd.concat([week_df, aux_df])
 
@@ -42,14 +50,15 @@ def simulate(df: pd.DataFrame, monthly_scale_factor=None):
         )
     )
     month_df['requests'] = list(week_df['requests']) * 4
-    total_month_hits = month_df['requests'].astype(int).sum()
+    total_month_hits = float(month_df['requests'].sum())
     month_df['reqs_normalized'] = \
-        month_df['requests'].astype(float) / total_month_hits
+        month_df['requests'] / total_month_hits
 
-    # Calculate costs
-    MB_per_request = 512
-    ms_per_req = 200
-    max_reqs_per_second = 1000
+    if monthly_scale_factor is not None:
+        month_df['requests'] = \
+            month_df['reqs_normalized'] * monthly_scale_factor
+        month_df = month_df.round({'requests': 0})
+        month_df['requests'] = month_df['requests'].astype(int)
 
     mylambda = awscosts.Lambda(
         MB_per_req=MB_per_request,

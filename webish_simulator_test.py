@@ -13,14 +13,19 @@ dataframe = pd.DataFrame(
     columns=('hits',)
 )
 
+monthly_hits = 28 * 24
+output_df = ws.simulate(dataframe, monthly_scale_factor=monthly_hits)
 
-def test_simulator(df=dataframe):
+
+def test_simulator(df=output_df):
     # print(dataframe.head())
-    assert type(ws.simulate(df)) == pd.DataFrame
+    assert type(df) == pd.DataFrame
 
 
-def test_normalization(df=dataframe):
-    print(df.head())
-    result = ws.simulate(df)
-    sum_norm = result['reqs_normalized'].sum()
+def test_normalization(df=output_df):
+    sum_norm = df['reqs_normalized'].sum()
     assert int(round(sum_norm)) == 1
+
+
+def test_scale_factor(df=output_df):
+    assert df['requests'].sum() == monthly_hits

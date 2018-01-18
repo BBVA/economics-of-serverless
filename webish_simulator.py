@@ -1,7 +1,6 @@
 # FIXME: datetime.now() has to be replaced with the last monday at 0:00
 # TODO: crear df de 30 días y meterle la semana sintética tantas veces como entre
 # TODO: ya no es necesario trabajar con datetimes
-# TODO: separar funcion que calcula costes en el DF
 
 import awscosts
 import pandas as pd
@@ -88,6 +87,37 @@ def get_cost(
     df['lambda_sum'] = df.lambda_cost.cumsum()
     df['ec2_sum'] = df.ec2_cost.cumsum()
 
-    df.round({'lambda_cost': 2, 'ec2_cost': 2, 'lambda_sum': 2, 'ec2_sum': 2})
+    df = df.round({'lambda_cost': 2, 'ec2_cost': 2, 'lambda_sum': 2, 'ec2_sum': 2})
+
+    df['break_even'] = df['ec2_sum'] - df['lambda_sum']
 
     return df
+
+
+def find_breakeven(df: pd.DataFrame):
+    df['req_sum'] = df.requests.cumsum()
+    breakeven_df = df[df.break_even < 0]
+    if breakeven_df.empty:
+        return None
+    return breakeven_df.iloc[0]
+
+
+def get_breakeven(df: pd.DataFrame, factor_list: list):
+    # simulate and calculate costs for several factors:
+    breakeven_points = list()
+    for factor in factor_list:
+        month_df = simulate(df, monthly_scale_factor=factor)
+        month_df = get_cost(
+            month_df,
+            MB_per_request=256,
+            ms_per_req=200,
+            max_reqs_per_second=1000,
+        )
+        breakeven = find_breakeven(month_df)
+        if breakeven is not None:
+            breakeven_points.append((breakeven['req_sum'] / factor)*100)
+        else:
+            breakeven_points.append(100)
+    mean_reqs_per_second = [x / float(28*24*60*60) for x in factor_list]
+
+    return mean_reqs_per_second, breakeven_points

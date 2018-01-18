@@ -18,24 +18,6 @@ Run pipenv in `dev` mode with : `pipenv install --dev`
 ## Docker execution environment (optional)
 ### Requiremens:
 * Python3 + Pip
-* Docker 1.12+
-
-### Build & run EoS executor
-
-1. Build the docker image [local/eos:latest]
-```
-$ ./eos build
-```
-
-2. Run the default riot.py script
-```
-$ ./eos riot
-```
-
-3. Run any custom command
-```
-$ ./eos run [command] [args] ...
-```
 
 ### Executing the jupyter notebook:
 1. Launch a Jupyter Docker container
@@ -46,19 +28,3 @@ $ ./eos run [command] [args] ...
   ```
   $ pip install -e $HOME/work/awscosts
   ```
-
-### Executing the jupyter notebook automated:
-1. Start Jupyter server
-```
-$ ./eos start-jupyter
-Starting eos Jupyter
-6ff2af407c66ecab0a81015d5a9885a816bf69e2553c4bf2aa3962750278905f
-    Copy/paste this URL into your browser when you connect for the first time,
-    to login with a token:
-        http://localhost:8888/?token=1b15e1f8b8883efa272c9a5880aaf736f97b8d40f6e95ff1
-```
-
-2. Stop Jupyter server
-```
-$ ./eos stop-jupyter
-```

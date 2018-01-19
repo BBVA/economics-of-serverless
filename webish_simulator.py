@@ -70,36 +70,36 @@ def get_lambda_cost(df: pd.DataFrame, MB_per_request=128, ms_per_req=200,):
     return df
 
 
-def get_ec2_cost(df: pd.DataFrame, instance_type, max_reqs_per_second):
+def get_ec2_cost(df: pd.DataFrame, flavor, max_reqs_per_second):
     myec2 = awscosts.EC2(
-        instance_type=instance_type,
+        instance_type=flavor,
         max_reqs_per_second=max_reqs_per_second
     )
-    df['ec2_cost'] = df.apply(
+    df[flavor] = df.apply(
         lambda x: myec2.get_cost_and_num_instances(3600, reqs=x['requests'])[0],
         axis=1
     )
 
-    df['instances'] = df.apply(
+    df[flavor + '_instances'] = df.apply(
         lambda x: myec2.get_num_instances(reqs=x['requests'] / 3600),
         axis=1
     )
 
-    df['ec2_sum'] = df.ec2_cost.cumsum()
-    df = df.round({'ec2_cost': 2, 'ec2_sum': 2})
+    df[flavor + '_sum'] = df[flavor].cumsum()
+    df = df.round({flavor: 2, flavor + '_sum': 2})
 
     return df
 
 
-def find_breakeven(df: pd.DataFrame):
+def find_breakeven(df: pd.DataFrame, flavor):
     df['req_sum'] = df.requests.cumsum()
-    breakeven_df = df[df.break_even < 0]
+    breakeven_df = df[df[flavor + '_break_even'] < 0]
     if breakeven_df.empty:
         return None
     return breakeven_df.iloc[0]
 
 
-def get_breakeven(df: pd.DataFrame, factor_list: list):
+def get_breakeven(df: pd.DataFrame, factor_list: list, flavor, max_reqs):
     # simulate and calculate costs for several factors:
     breakeven_points = list()
     for factor in factor_list:
@@ -109,18 +109,23 @@ def get_breakeven(df: pd.DataFrame, factor_list: list):
             MB_per_request=256,
             ms_per_req=200,
         )
+
         month_df = get_ec2_cost(
             month_df,
-            instance_type='m3.medium',
-            max_reqs_per_second=1000
+            flavor=flavor,
+            max_reqs_per_second=max_reqs
         )
-        month_df['break_even'] = month_df['ec2_sum'] - month_df['lambda_sum']
 
-        breakeven = find_breakeven(month_df)
+        month_df[flavor + '_break_even'] = \
+            month_df[flavor + '_sum'] - month_df['lambda_sum']
+
+        breakeven = find_breakeven(month_df, flavor)
+
         if breakeven is not None:
             breakeven_points.append((breakeven['req_sum'] / factor) * 100)
         else:
             breakeven_points.append(100)
+
     mean_reqs_per_second = [x / float(28 * 24 * 60 * 60) for x in factor_list]
 
     return mean_reqs_per_second, breakeven_points

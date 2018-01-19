@@ -7,9 +7,10 @@
 ## Install & run
 
 1. Install all dependencies: `$ pipenv install`  
-2. Activate environment: `$ pipenv shell`
-3. (optional) Run jupyter notebook `$ jupyter notebook`
-4. Select and run the desired notebook.
+1. Activate environment: `$ pipenv shell`
+1. (optional) Run jupyter notebook `$ jupyter notebook`
+1. Enable widgets in Jupyter: `$ jupyter nbextension enable --py widgetsnbextension`
+1. Select and run the desired notebook.
 
 ## Contribute
 

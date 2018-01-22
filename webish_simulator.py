@@ -92,11 +92,13 @@ def get_ec2_cost(df: pd.DataFrame, flavor, max_reqs_per_second):
 
 
 def find_breakeven(df: pd.DataFrame, flavor):
-    df['req_sum'] = df.requests.cumsum()
-    breakeven_df = df[df[flavor + '_break_even'] < 0]
+    # df['req_sum'] = df.requests.cumsum()
+    breakeven_df = df[df[flavor + '_break_even'] > 0]
     if breakeven_df.empty:
         return None
-    return breakeven_df.iloc[0]
+    # print(breakeven_df.head())
+
+    return breakeven_df['req_sum'][0]
 
 
 def get_breakeven(df: pd.DataFrame, factor_list: list, ec2_flavors: dict):
@@ -104,9 +106,11 @@ def get_breakeven(df: pd.DataFrame, factor_list: list, ec2_flavors: dict):
     breakeven_points = dict()
     for factor in factor_list:
         month_df = simulate(df, monthly_scale_factor=factor)
+        month_df['req_sum'] = month_df.requests.cumsum()
+
         month_df = get_lambda_cost(
             month_df,
-            MB_per_request=256,
+            MB_per_request=128,
             ms_per_req=200,
         )
 
@@ -118,7 +122,7 @@ def get_breakeven(df: pd.DataFrame, factor_list: list, ec2_flavors: dict):
             )
 
             month_df[flavor + '_break_even'] = \
-                month_df[flavor + '_sum'] - month_df['lambda_sum']
+                month_df['lambda_sum'] - month_df[flavor + '_sum']
 
             breakeven = find_breakeven(month_df, flavor)
 
@@ -126,11 +130,10 @@ def get_breakeven(df: pd.DataFrame, factor_list: list, ec2_flavors: dict):
                 breakeven_points[flavor] = list()
             if breakeven is not None:
                 breakeven_points[flavor].append(
-                    (breakeven['req_sum'] / factor) * 100
+                    (breakeven / factor) * 100
                 )
             else:
                 breakeven_points[flavor].append(100)
 
     mean_reqs_per_second = [x / float(28 * 24 * 60 * 60) for x in factor_list]
-
-    return mean_reqs_per_second, breakeven_points
+    return list(mean_reqs_per_second), breakeven_points

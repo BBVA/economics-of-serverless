@@ -11,7 +11,7 @@ def simulate(df: pd.DataFrame, monthly_scale_factor=None):
     df['weekday'] = df.index.weekday_name
     df['hour'] = df.index.hour
 
-    startdate = datetime.datetime(1970, 1, 5)
+    startdate = datetime.datetime(2018, 1, 7)
     days = ('Monday', 'Tuesday', 'Wednesday', 'Thursday',
             'Friday', 'Saturday', 'Sunday')
 
@@ -29,13 +29,17 @@ def simulate(df: pd.DataFrame, monthly_scale_factor=None):
         startdate += datetime.timedelta(days=1)
         week_df = pd.concat([week_df, aux_df])
 
-    # Build month DataFrame from week DF
+    # Build 35-days DataFrame from week DF
     month_df = pd.DataFrame(
         index=pd.date_range(
-            start=datetime.datetime(2018, 1, 1), periods=28 * 24, freq='H'
+            start=datetime.datetime(2018, 1, 1), periods=35 * 24, freq='H'
         )
     )
-    month_df['requests'] = list(week_df['requests']) * 4
+    month_df['requests'] = list(week_df['requests']) * 5
+
+    # Delete last 5 days to get 30 days (1 month)
+    month_df = month_df.drop(month_df.index[-120:])
+
     total_month_hits = float(month_df['requests'].sum())
     month_df['reqs_normalized'] = \
         month_df['requests'] / total_month_hits

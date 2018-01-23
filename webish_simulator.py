@@ -1,7 +1,3 @@
-# FIXME: datetime.now() has to be replaced with the last monday at 0:00
-# TODO: crear df de 30 días y meterle la semana sintética tantas veces como entre
-# TODO: ya no es necesario trabajar con datetimes
-
 import awscosts
 import pandas as pd
 import datetime
@@ -101,7 +97,12 @@ def find_breakeven(df: pd.DataFrame, flavor):
     return breakeven_df['req_sum'][0]
 
 
-def get_breakeven(df: pd.DataFrame, factor_list: list, ec2_flavors: dict):
+def get_breakeven(
+    df: pd.DataFrame,
+    factor_list: list,
+    ec2_flavors: dict,
+    lambda_flavor: dict
+):
     # simulate and calculate costs for several factors:
     breakeven_points = dict()
     for factor in factor_list:
@@ -110,8 +111,8 @@ def get_breakeven(df: pd.DataFrame, factor_list: list, ec2_flavors: dict):
 
         month_df = get_lambda_cost(
             month_df,
-            MB_per_request=128,
-            ms_per_req=200,
+            MB_per_request=lambda_flavor['memory'],
+            ms_per_req=lambda_flavor['exec_time'],
         )
 
         for flavor, reqs in ec2_flavors.items():

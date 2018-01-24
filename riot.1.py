@@ -1,10 +1,7 @@
 from functools import reduce, partial
-from itertools import accumulate
-from iot.simulator import *
 from random import randint
-
+import math
 import plotly
-import plotly.plotly as py
 import plotly.graph_objs as go
 import awscosts
 
@@ -13,44 +10,46 @@ class Object(object):
     pass
 
 
-def new_peak(myrange, peak_duration, request_period, peak_height):
-    peak=Object()
-    peak.start = randint(myrange[0],myrange[1])
-    peak.end = peak.start + peak_duration/request_period
-    peak.half = peak.start + (peak.end-peak.start) / 2
+def new_peak(occurrence_periods_range, peak_duration, peak_height):
+    peak = Object()
+    peak.start = randint(occurrence_periods_range[0], occurrence_periods_range[1])
+    peak.end = peak.start + peak_duration
+    peak.half = peak.start + peak_duration // 2
     peak.height = peak_height
     return peak
 
-def is_in_peak(request_period_index, peaks):
-    for p in peaks:
-        if request_period_index > p.start and request_period_index < p.end:
-            return p
-    
-    return None
+def find_peak(resolution_bucket_index, peaks):
+    return next((p for p in peaks if (resolution_bucket_index > p.start and resolution_bucket_index < p.end)), None)
+    # for peak in peaks:
+    #     if resolution_bucket_index > peak.start and resolution_bucket_index < peak.end:
+    #         return peak
+    # return None
 
-def num_devices(request_period_index, total, peaks):
+def num_devices_per_bucket(resolution_bucket_index, total_devices, peak):
 
-    peak = is_in_peak(request_period_index,peaks)
-    base = total
+    base = total_devices
 
-    if peak == None:
+    if peak is None:
         return base
 
-    if request_period_index < peak.half:
-        return base+math.ceil(total * ( peak.height * ( request_period_index / peak.half ) ))
+    if resolution_bucket_index < peak.half:
+        return base + math.ceil(total_devices * (peak.height * (resolution_bucket_index / peak.half)))
 
-    return base+math.ceil(total * ( peak.height * (peak.half / request_period_index ) ))
- 
+    return base + math.ceil(total_devices * (peak.height * (peak.half / resolution_bucket_index)))
+
 
 def generate_requests_time_serie(total_num_devices, request_period, interval_duration, resolution):
-    periods = interval_duration // request_period
-    peak_duration, non_peak_duration = (interval_duration * 0.15, interval_duration)
+    
+    #num_periods = interval_duration // request_period
+    #peak_duration = interval_duration * 0.15
+    peak_duration = interval_duration * 0.15 // resolution # in resolution buckets
     peak_height =  1.6
     hits_distribution = list()
-    infernal_constant = periods*(request_period//resolution)
+    num_resolution_buckets = interval_duration // resolution
+    #infernal_constant = num_periods * (request_period // resolution)
     peaks = list([
-        new_peak(range(infernal_constant//5, infernal_constant//3), peak_duration, request_period, peak_height), 
-        new_peak(range(infernal_constant//2, infernal_constant), peak_duration, request_period, peak_height)
+        new_peak(range(num_resolution_buckets // 5, num_resolution_buckets // 3), peak_duration, peak_height), 
+        new_peak(range(num_resolution_buckets // 2, num_resolution_buckets), peak_duration, peak_height)
         ])
 
 
@@ -64,21 +63,21 @@ def generate_requests_time_serie(total_num_devices, request_period, interval_dur
 
     resolutions = list()
 
-    for p in range(0,infernal_constant):
-        n = num_devices(p, total_num_devices, peaks)
-        hits_distribution.append(n)
-        devices_buckets = calculate_buckets(n, request_period)
+    for resolution_bucket_index in range(0, num_resolution_buckets):
+        peak = find_peak(resolution_bucket_index, peaks)
+        num_devices = num_devices_per_bucket(resolution_bucket_index, total_num_devices, peak)
+        hits_distribution.append(num_devices)
+        devices_buckets = calculate_buckets(num_devices, request_period)
         devices_by_resolution = [max(devices_buckets[p:p+resolution]) for p in range(0, len(devices_buckets), resolution)]
 
         resolutions = resolutions + devices_by_resolution
-
 
     return resolutions, hits_distribution
 
 
 def aggregate_costs(req_period, resolution, interval_duration, hits, lambda_instance, ec2_instances_list, devices_time_serie):
-    costs = {'resolution_buckets':0, 'hits':0, 'lambda':0}
-    costs['resolution_buckets'] = interval_duration // resolution
+    costs = {'num_resolution_buckets':0, 'hits':0, 'lambda':0}
+    costs['num_resolution_buckets'] = interval_duration // resolution
     costs['hits'] = hits
     costs['reqs_per_second'] = costs['hits'] / interval_duration
     costs['lambda'] = lambda_instance.get_cost(costs['hits'], reset_free_tier=True)
@@ -158,41 +157,6 @@ def draw_costs_by_num_devices(costs, num_devices_list, ec2_flavors, req_period):
     fig = go.Figure(data=data, layout=layout)
     plotly.offline.plot(fig)
 
-def draw_costs_by_num_reqs(costs, ec2_flavors, req_period):
-
-    data = []
-
-    lambda_trace = go.Scatter(
-        x=[cost['hits'] for cost in costs],
-        y=[cost['lambda'] for cost in costs],
-        name='Lambda'
-    )
-    data.append(lambda_trace)
-
-    for flavor in ec2_flavors:
-        trace = go.Scatter(
-            x=[cost['hits'] for cost in costs],
-            y=[cost[f'ec2_{flavor}_cost'] * cost[f'ec2_{flavor}_instances'] for cost in costs],
-            name=f'EC2 {flavor}'
-        )
-        data.append(trace)
-
-    layout = go.Layout(
-        title=f'Cost by number of requests (request period: {req_period} seconds)',
-        legend=dict(orientation="h"),
-        xaxis=dict(
-            title='Number of reqs',
-            type='log',
-            autorange=True
-        ),
-        yaxis=dict(
-            title='Cost ($)'
-        )
-    )
-
-    fig = go.Figure(data=data, layout=layout)
-    plotly.offline.plot(fig)
-
 def draw_num_devices(mydata):
     data = []
 
@@ -211,7 +175,7 @@ def draw_num_devices(mydata):
         width=1000,
         height=800,
         xaxis=dict(
-            title='Period',
+            title='Periods',
             autorange=True
         ),
         yaxis=dict(
@@ -234,7 +198,8 @@ def main():
     ec2_flavors = ('m3.medium', 'm4.large', 'm4.4xlarge')
     req_period_list = [24 * 3600, 7*24*3600]
     #[10, 50, 100, 500, 1000, 5000, 10000, 50000, 100000, 500000, 1000000, 5000000, 10000000]
-    num_devices_list = [1000000, 10000000, 100000000 ] # reduce(devices_func, range(1,13), [1000000000])
+    num_devices_list = reduce(devices_func, range(1,5), [1000000]) # [1000000, 10000000, 100000000 ] 
+    print(num_devices_list)
 
     resolution = 60 * 60 * 24 # in seconds
     interval_duration = 30 * 24 * 3600 # one month in seconds
@@ -254,7 +219,6 @@ def main():
             costs.append(cost)
 
         draw_costs_by_num_devices(costs, num_devices_list, ec2_flavors, req_period)
-        #draw_costs_by_num_reqs(costs, ec2_flavors, req_period)
 
 if __name__ == "__main__":
     main()

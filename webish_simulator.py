@@ -50,6 +50,8 @@ def simulate(df: pd.DataFrame, monthly_scale_factor=None):
         month_df = month_df.round({'requests': 0})
         month_df['requests'] = month_df['requests'].astype(int)
 
+    month_df['req_sum'] = month_df.requests.cumsum()
+
     return month_df
 
 
@@ -111,7 +113,6 @@ def get_breakeven(
     breakeven_points = dict()
     for factor in factor_list:
         month_df = simulate(df, monthly_scale_factor=factor)
-        month_df['req_sum'] = month_df.requests.cumsum()
 
         month_df = get_lambda_cost(
             month_df,

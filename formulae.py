@@ -46,7 +46,9 @@ def draw_costs_by_reqs_per_second(costs):
         ),
         xaxis=dict(
             title='Number of reqs/sec',
-            type='log'
+            type='log',
+            anchor='free',
+            position=0.02,
         ),
         yaxis=dict(
             title='Cost ($)'

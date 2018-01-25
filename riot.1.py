@@ -1,99 +1,48 @@
 from functools import reduce, partial
+from itertools import accumulate
+from iot.simulator import *
 from random import randint
-import math
 import plotly
+import plotly.plotly as py
 import plotly.graph_objs as go
+import numpy as np
 import awscosts
 
+def generate_requests_time_serie(num_devices, request_period, interval_duration, resolution):
+    mean = num_devices // request_period
+    result = list()
+    for i in range(0,(interval_duration//resolution)):
+        if i > 0 and i < 1000:
+            result.append(mean/2)
+        if i >= 1000 and i < 1500:
+            result.append(mean*2)
+        if i >=1500 and i < 6500:
+            result.append(mean/2)
+        if i >= 6500 and i <8000:
+            result.append(mean*2)
+        if i >=8000:
+            result.append(mean/2)
+    return result
+    #return [num_devices // request_period] * (interval_duration//resolution)
 
-class Object(object):
-    pass
-
-
-def new_peak(occurrence_periods_range, peak_duration, peak_height):
-    peak = Object()
-    peak.start = randint(occurrence_periods_range[0], occurrence_periods_range[1])
-    peak.end = peak.start + peak_duration
-    peak.half = peak.start + peak_duration // 2
-    peak.height = peak_height
-    return peak
-
-def find_peak(resolution_bucket_index, peaks):
-    return next((p for p in peaks if (resolution_bucket_index > p.start and resolution_bucket_index < p.end)), None)
-    # for peak in peaks:
-    #     if resolution_bucket_index > peak.start and resolution_bucket_index < peak.end:
-    #         return peak
-    # return None
-
-def num_devices_per_bucket(resolution_bucket_index, total_devices, peak):
-
-    base = total_devices
-
-    if peak is None:
-        return base
-
-    if resolution_bucket_index < peak.half:
-        return base + math.ceil(total_devices * (peak.height * (resolution_bucket_index / peak.half)))
-
-    return base + math.ceil(total_devices * (peak.height * (peak.half / resolution_bucket_index)))
-
-
-def generate_requests_time_serie(total_num_devices, request_period, interval_duration, resolution):
-    
-    #num_periods = interval_duration // request_period
-    #peak_duration = interval_duration * 0.15
-    peak_duration = interval_duration * 0.15 // resolution # in resolution buckets
-    peak_height =  1.6
-    hits_distribution = list()
-    num_resolution_buckets = interval_duration // resolution
-    #infernal_constant = num_periods * (request_period // resolution)
-    peaks = list([
-        new_peak(range(num_resolution_buckets // 5, num_resolution_buckets // 3), peak_duration, peak_height), 
-        new_peak(range(num_resolution_buckets // 2, num_resolution_buckets), peak_duration, peak_height)
-        ])
-
-
-    # Distribute devices in buckets of time deltas from 0 to request_period
-    def calculate_buckets(num_devices, request_period):
-        device_buckets = [0] * request_period
-        for _ in range(0, num_devices):
-            pos = randint(0, request_period - 1)
-            device_buckets[pos] += 1
-        return device_buckets
-
-    resolutions = list()
-
-    for resolution_bucket_index in range(0, num_resolution_buckets):
-        peak = find_peak(resolution_bucket_index, peaks)
-        num_devices = num_devices_per_bucket(resolution_bucket_index, total_num_devices, peak)
-        hits_distribution.append(num_devices)
-        devices_buckets = calculate_buckets(num_devices, request_period)
-        devices_by_resolution = [max(devices_buckets[p:p+resolution]) for p in range(0, len(devices_buckets), resolution)]
-
-        resolutions = resolutions + devices_by_resolution
-
-    return resolutions, hits_distribution
-
-
-def aggregate_costs(req_period, resolution, interval_duration, hits, lambda_instance, ec2_instances_list, devices_time_serie):
-    costs = {'num_resolution_buckets':0, 'hits':0, 'lambda':0}
-    costs['num_resolution_buckets'] = interval_duration // resolution
-    costs['hits'] = hits
+def aggregate_costs(req_period, resolution, interval_duration, num_devices, lambda_instance, ec2_instances_list, devices_time_serie):
+    costs = {'resolution_buckets':0, 'hits':0, 'lambda':0}
+    costs['resolution_buckets'] = interval_duration // resolution
+    costs['hits'] = num_devices * (interval_duration // req_period)
     costs['reqs_per_second'] = costs['hits'] / interval_duration
     costs['lambda'] = lambda_instance.get_cost(costs['hits'], reset_free_tier=True)
 
     def calc_ec2_instance_use(num_hits, ec2_instance = None, resolution = 0):
-        num_instances = max(1, ec2_instance.get_num_instances(num_hits/resolution))
-        cost = ec2_instance._cost_per_hour/resolution *  (num_instances - 1) # we accumulate only auto-scaled instances (>1)
+        num_instances = max(1,ec2_instance.get_num_instances(num_hits)) # the cost of one fixed instance plus the cost of the auto-scaled ones
+        cost = (ec2_instance._cost_per_hour/3600) * resolution *  num_instances # we accumulate only auto-scaled instances (>1)
         return (num_instances, cost)
-
+    
     for ec2_instance in ec2_instances_list:
         calc_by_instance = partial(calc_ec2_instance_use, ec2_instance = ec2_instance, resolution = resolution)
-        instances_and_cost = reduce(lambda x, y:  (max(x[0],y[0]), x[1] + y[1]), map(calc_by_instance, devices_time_serie), (0, 0))
-        cost = (ec2_instance._cost_per_hour * (interval_duration / 3600)) + instances_and_cost[1] # the cost of one fixed instance plus the cost of the auto-scaled ones
+        instances,cost = reduce(lambda x, y:  (max(x[0],y[0]), x[1] + y[1]), map(calc_by_instance, devices_time_serie), (0, 0))
         costs.update({
             f'ec2_{ec2_instance._instance_type}_cost':cost,
-            f'ec2_{ec2_instance._instance_type}_instances':instances_and_cost[0]
+            f'ec2_{ec2_instance._instance_type}_instances': instances
             })
     
     return costs
@@ -112,13 +61,13 @@ def draw_costs_by_num_devices(costs, num_devices_list, ec2_flavors, req_period):
     for flavor in ec2_flavors:
         trace1 = go.Scatter(
             x=[cost["reqs_per_second"] for cost in costs],
-            y=[cost[f'ec2_{flavor}_cost'] * cost[f'ec2_{flavor}_instances'] for cost in costs],
+            y=[cost[f'ec2_{flavor}_cost'] for cost in costs],
             name=f'EC2 {flavor}',
             showlegend=False
         )
         trace2 = go.Scatter(
             x=num_devices_list,
-            y=[cost[f'ec2_{flavor}_cost'] * cost[f'ec2_{flavor}_instances'] for cost in costs],
+            y=[cost[f'ec2_{flavor}_cost'] for cost in costs],
             name=f'EC2 {flavor}',
             xaxis='x2'
         )
@@ -157,35 +106,6 @@ def draw_costs_by_num_devices(costs, num_devices_list, ec2_flavors, req_period):
     fig = go.Figure(data=data, layout=layout)
     plotly.offline.plot(fig)
 
-def draw_num_devices(mydata):
-    data = []
-
-    devices_trace = go.Scatter(
-        y=mydata,
-        x=[i for i in range(0, len(mydata))],
-        name='Data',
-        fill="tozeroy"
-    )
-    data.append(devices_trace)
-
-
-    layout = go.Layout(
-        title=f'Number of devices over periods',
-        legend=dict(orientation="h"),
-        width=1000,
-        height=800,
-        xaxis=dict(
-            title='Periods',
-            autorange=True
-        ),
-        yaxis=dict(
-            title='Devices (#)'
-        )
-    )
-
-    fig = go.Figure(data=data, layout=layout)
-    plotly.offline.plot(fig)
-
 def main():
 
     def devices_func(acc, i):
@@ -196,12 +116,11 @@ def main():
         return acc
 
     ec2_flavors = ('m3.medium', 'm4.large', 'm4.4xlarge')
-    req_period_list = [24 * 3600, 7*24*3600]
+    req_period_list = [3600] # , 8* 3600, 24 * 3600]
     #[10, 50, 100, 500, 1000, 5000, 10000, 50000, 100000, 500000, 1000000, 5000000, 10000000]
-    num_devices_list = reduce(devices_func, range(1,5), [1000000]) # [1000000, 10000000, 100000000 ] 
-    print(num_devices_list)
-
-    resolution = 60 * 60 * 24 # in seconds
+    num_devices_list = reduce(devices_func, range(1,13), [10])
+    num_devices_list = list(range(200000,10000000,100000))
+    resolution = 60 * 5 # in seconds
     interval_duration = 30 * 24 * 3600 # one month in seconds
     lambda_memory = 128
     lambda_request_duration_ms = 200
@@ -211,11 +130,11 @@ def main():
         costs = []
         for num_devices in num_devices_list:
             lambda_instance = awscosts.Lambda(lambda_memory, lambda_request_duration_ms)
-            time_serie, hits_distribution = generate_requests_time_serie(num_devices, req_period, interval_duration, resolution)
-            draw_num_devices(time_serie)
-            cost = aggregate_costs(req_period, resolution, interval_duration, sum(hits_distribution), lambda_instance, ec2_instances, time_serie)
+            time_serie = generate_requests_time_serie(num_devices, req_period, interval_duration, resolution)
+            cost = aggregate_costs(req_period, resolution, interval_duration, num_devices, lambda_instance, ec2_instances, time_serie)
 
-            print(cost)
+            print(cost['hits'], cost['reqs_per_second'], cost['lambda'], cost['ec2_m3.medium_cost'] * cost[f'ec2_m3.medium_instances'], cost['ec2_m4.large_cost'] * cost[f'ec2_m4.large_instances'], cost['ec2_m4.4xlarge_cost']*cost[f'ec2_m4.4xlarge_instances'])
+
             costs.append(cost)
 
         draw_costs_by_num_devices(costs, num_devices_list, ec2_flavors, req_period)

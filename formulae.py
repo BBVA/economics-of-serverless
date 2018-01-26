@@ -55,13 +55,6 @@ def draw_costs_by_reqs_per_second(costs):
         ),
         width=800,
         height=1000,
-        # margin=go.Margin(
-        #     t=200,
-        #     b=200,
-        #     r=100,
-        #     l=100,
-        #     autoexpand=False
-        # ),
         xaxis1=dict(
             title='<b>Number of reqs/sec</b>',
             type='log'

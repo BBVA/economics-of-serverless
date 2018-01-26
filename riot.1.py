@@ -54,52 +54,32 @@ def draw_costs_by_num_devices(costs, num_devices_list, ec2_flavors, req_period):
     lambda_trace = go.Scatter(
         x=[cost["reqs_per_second"] for cost in costs],
         y=[cost['lambda'] for cost in costs],
-        name='Lambda'
+        name='Lambda',
+        marker=dict(color='blue')
     )
     data.append(lambda_trace)
 
-    for flavor in ec2_flavors:
-        trace1 = go.Scatter(
+    for flavor, color in zip(ec2_flavors,['green', 'orange', 'red']):
+        trace = go.Scatter(
             x=[cost["reqs_per_second"] for cost in costs],
             y=[cost[f'ec2_{flavor}_cost'] for cost in costs],
             name=f'EC2 {flavor}',
-            showlegend=False
+            marker=dict(color=color)
         )
-        trace2 = go.Scatter(
-            x=num_devices_list,
-            y=[cost[f'ec2_{flavor}_cost'] for cost in costs],
-            name=f'EC2 {flavor}',
-            xaxis='x2'
-        )
-        data.append(trace1)
-        data.append(trace2)
+        data.append(trace)
 
     layout = go.Layout(
-        title=f'Cost by number of devices (request period: {req_period} seconds)',
-        legend=dict(orientation='h'),
+        title=f'<b>Monthly cost by number of requests per second</b><br><i>(request period: {req_period} seconds)</i></b>',
+        legend=dict(orientation='v'),
         width=1000,
         height=800,
-        margin=go.Margin(
-            t=200,
-            b=200,
-            r=100,
-            l=100,
-            autoexpand=False
-        ),
         xaxis=dict(
-            title='Number of reqs/sec',
-            type='log',
-            anchor='free',
-            position=0.02
-        ),
-        xaxis2=dict(
-            title="Number of devices",
-            type='log',
-            side='top',
-            overlaying='x'
+            title='<b>Number of reqs/sec</b>',
+            type='log'
         ),
         yaxis=dict(
-            title='Cost ($)'
+            title='<b>Monthly cost ($)</b>',
+            type='log'
         )
     )
 

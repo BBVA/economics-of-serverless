@@ -29,3 +29,18 @@ Run pipenv in `dev` mode with : `pipenv install --dev`
   ```
   $ pip install -e $HOME/work/awscosts
   ```
+
+Contributing to Economics of Serverless
+=========================
+
+You can contribute to Economics of Serverless in a few different ways:
+
+- Submit issues through [issue tracker](https://github.com/BBVA/Economics-of-Serverless/issues) on GitHub.
+- If you wish to make code changes, or contribute something new, please follow the
+[GitHub Forks / Pull requests model](https://help.github.com/articles/fork-a-repo): fork the
+[Economics of Serverless](https://github.com/BBVA/Economics-of-Serverless/), make the changes and propose it back by submitting a pull request.
+
+License
+=======
+
+This project is distributed under [Apache License](https://github.com/BBVA/Economics-of-Serverless/blob/master/LICENSE)

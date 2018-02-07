@@ -19,6 +19,10 @@ from plotly import tools
 import plotly.graph_objs as go
 from bbva_colors import BBVAcolors
 
+image_type = None
+# Uncomment next line to produce pngs
+# image_type = 'png'
+
 
 def lambda_f(num_requests, memory_size):
     return max(
@@ -115,7 +119,12 @@ def draw_costs_by_reqs_per_second(costs):
             type='log'
         )
     )
-    plotly.offline.plot(fig)
+    plotly.offline.plot(
+        fig,
+        image=image_type,
+        image_height=1024,
+        image_width=800,
+    )
 
 
 class Cost:

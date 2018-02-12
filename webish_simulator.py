@@ -69,7 +69,7 @@ def simulate(df: pd.DataFrame, monthly_scale_factor=None):
     return month_df
 
 
-def get_lambda_cost(df: pd.DataFrame, MB_per_request=128, ms_per_req=200,):
+def get_lambda_cost(df: pd.DataFrame, MB_per_request=128, ms_per_req=200):
     mylambda = awscosts.Lambda(
         MB_per_req=MB_per_request,
         ms_per_req=ms_per_req
@@ -86,11 +86,9 @@ def get_lambda_cost(df: pd.DataFrame, MB_per_request=128, ms_per_req=200,):
     return df
 
 
-def get_ec2_cost(df: pd.DataFrame, flavor, max_reqs_per_second):
-    myec2 = awscosts.EC2(
-        instance_type=flavor,
-        max_reqs_per_second=max_reqs_per_second
-    )
+def get_ec2_cost(df: pd.DataFrame, flavor, **kwargs):
+
+    myec2 = awscosts.EC2(instance_type=flavor, **kwargs)
     df[flavor] = df.apply(
         lambda x: myec2.get_cost_and_num_instances(3600, reqs=x['requests'])[0],
         axis=1
@@ -103,7 +101,6 @@ def get_ec2_cost(df: pd.DataFrame, flavor, max_reqs_per_second):
 
     df[flavor + '_sum'] = df[flavor].cumsum()
     df = df.round({flavor: 2, flavor + '_sum': 2})
-
     return df
 
 
@@ -121,7 +118,8 @@ def get_breakeven(
     df: pd.DataFrame,
     factor_list: list,
     ec2_flavors: dict,
-    lambda_flavor: dict
+    lambda_flavor: dict,
+    throughput_ratio=1,
 ):
     # simulate and calculate costs for several factors:
     breakeven_points = dict()
@@ -134,11 +132,13 @@ def get_breakeven(
             ms_per_req=lambda_flavor['exec_time'],
         )
 
-        for flavor, reqs in ec2_flavors.items():
+        for flavor in ec2_flavors:
             month_df = get_ec2_cost(
                 month_df,
                 flavor=flavor,
-                max_reqs_per_second=reqs
+                MB_per_req=lambda_flavor['memory'],
+                ms_per_req=lambda_flavor['exec_time'],
+                throughput_ratio=throughput_ratio,
             )
 
             month_df[flavor + '_break_even'] = \

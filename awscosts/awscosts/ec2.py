@@ -29,6 +29,8 @@ class EC2:
             this instance can process per second.
         **MB_per_req (float, optional): Size in Megabytes of a request.
         **ms_per_req (int, optional): Duration in ms of a request.
+        **throughput_ratio (float, optional): EC2 to Lambda relative throughput
+            (1 by default)
     """
     def __init__(self, instance_type, **kwargs):
         self.__instance_type = instance_type
@@ -42,11 +44,16 @@ class EC2:
             req_size = float(kwargs['MB_per_req'])
             req_time = float(kwargs['ms_per_req']) / 1000
 
-            self.max_reqs_per_second = (self._memory / req_size) / req_time
+            if 'throughput_ratio' not in kwargs:
+                throughput_ratio = 1
+            else:
+                throughput_ratio = kwargs['throughput_ratio']
+            self.max_reqs_per_second = \
+                int(throughput_ratio * self._memory / (req_size * req_time))
 
         else:
             error_text = "Either max_reqs_per_second, or \
-                        (MB_per_request and ms_per_req) needs to be set."
+                        (MB_per_req and ms_per_req) needs to be set."
             raise ValueError(error_text)
 
     def __del__(self):

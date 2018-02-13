@@ -12,17 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
 class Lambda:
     """AWS Lambda price object, used to calculate costs.
 
     Args:
-        MB_per_req (int): memory consumed for this lambda. If not among AWS' lambda
-            flavors, the selected flavor will be the minimum to fit the
+        MB_per_req (int): memory consumed for this lambda. If not among AWS'
+            Lambda flavors, the selected flavor will be the minimum to fit the
             function. Defaults to 128 MB.
         ms_per_req (int): time (in miliseconds) that the function needs to run.
             Defaults to 100ms.
-        use_penalty (bool, optional): Flag to apply performance penalty
-            based on the selected flavor. Defaults to `False`.
         use_free_tier (bool, optional): Flag to control whether to use AWS free
             tier each new month (or manually when calling `get_cost`). Defaults
             to `True`.
@@ -32,25 +31,19 @@ class Lambda:
     _LAMBDA_FLAVORS = (
         128, 192, 256, 320, 384, 448, 512, 576,
         640, 704, 768, 832, 896, 960, 1024, 1088,
-        1152, 1216, 1280, 1344, 1408, 1472, 1536
+        1152, 1216, 1280, 1344, 1408, 1472, 1536,
+        1600, 1664, 1728, 1792, 1856, 1920, 1984,
+        2048, 2112, 2176, 2240, 2304, 2368, 2432,
+        2496, 2560, 2624, 2688, 2752, 2816, 2880,
+        2944, 3008,
     )
 
-    _PENALTY_TABLE = dict(zip(_LAMBDA_FLAVORS, [
-        16.6, 11.78, 8.19, 5.84, 4.75, 4.30, 3.87, 3.50,
-        3.14, 2.81, 2.54, 2.33, 2.16, 2.02, 1.89, 1.79,
-        1.68, 1.61, 1.54, 1.49, 1.45, 1.42, 1.40
-    ]))
-
-    def __init__(self, MB_per_req=128, ms_per_req=100, use_penalty=False,
-                 use_free_tier=True):
+    def __init__(self, MB_per_req=128, ms_per_req=100, use_free_tier=True):
 
         # Select the lambda flavor that fits the amount of MB_per_req
         self.mem = min(x for x in self._LAMBDA_FLAVORS if x >= MB_per_req)
 
-        self.penalty = self._PENALTY_TABLE[self.mem]
-
-        # Exec time is calculated using penalty values from empirical table:
-        self.exec_time = ms_per_req*self.penalty if use_penalty else ms_per_req
+        self.exec_time = ms_per_req
 
         # Improvement: this data could be requested via AWS Costs API:
         self.cost_per_million_reqs = .20
@@ -65,14 +58,6 @@ class Lambda:
 
     def __del__(self):
         pass
-
-    @property
-    def penalty(self):
-        return self.__penalty_factor
-
-    @penalty.setter
-    def penalty(self, penalty):
-        self.__penalty_factor = penalty
 
     @property
     def mem(self):

@@ -21,6 +21,8 @@ import plotly.plotly as py
 import plotly.graph_objs as go
 import numpy as np
 import awscosts
+from bbva_colors import BBVAcolors
+
 
 def generate_requests_time_serie(num_devices, request_period, interval_duration, resolution):
     mean = num_devices // request_period
@@ -50,7 +52,7 @@ def aggregate_costs(req_period, resolution, interval_duration, num_devices, lamb
         num_instances = max(1,ec2_instance.get_num_instances(num_hits)) # the cost of one fixed instance plus the cost of the auto-scaled ones
         cost = (ec2_instance._cost_per_hour/3600) * resolution *  num_instances # we accumulate only auto-scaled instances (>1)
         return (num_instances, cost)
-    
+
     for ec2_instance in ec2_instances_list:
         calc_by_instance = partial(calc_ec2_instance_use, ec2_instance = ec2_instance, resolution = resolution)
         instances,cost = reduce(lambda x, y:  (max(x[0],y[0]), x[1] + y[1]), map(calc_by_instance, devices_time_serie), (0, 0))
@@ -58,7 +60,7 @@ def aggregate_costs(req_period, resolution, interval_duration, num_devices, lamb
             f'ec2_{ec2_instance._instance_type}_cost':cost,
             f'ec2_{ec2_instance._instance_type}_instances': instances
             })
-    
+
     return costs
 
 def draw_costs_by_num_devices(costs, num_devices_list, ec2_flavors, req_period):
@@ -69,16 +71,16 @@ def draw_costs_by_num_devices(costs, num_devices_list, ec2_flavors, req_period):
         x=[cost["reqs_per_second"] for cost in costs],
         y=[cost['lambda'] for cost in costs],
         name='Lambda',
-        marker=dict(color='blue')
+        marker=BBVAcolors['coral']
     )
     data.append(lambda_trace)
 
-    for flavor, color in zip(ec2_flavors,['green', 'orange', 'red']):
+    for flavor, color in zip(ec2_flavors, ['light', 'aqua', 'navy']):
         trace = go.Scatter(
             x=[cost["reqs_per_second"] for cost in costs],
             y=[cost[f'ec2_{flavor}_cost'] for cost in costs],
             name=f'EC2 {flavor}',
-            marker=dict(color=color)
+            marker=BBVAcolors[color]
         )
         data.append(trace)
 

@@ -17,6 +17,7 @@ from iot.simulator import *
 import plotly
 import plotly.graph_objs as go
 import awscosts
+from bbva_colors import BBVAcolors
 
 
 def generate_requests_time_serie(
@@ -84,16 +85,16 @@ def draw_costs_by_num_devices(
         x=[cost["reqs_per_second"] for cost in costs],
         y=[cost['lambda'] for cost in costs],
         name='Lambda',
-        marker=dict(color='blue')
+        marker=BBVAcolors['coral']
     )
     data.append(lambda_trace)
 
-    for flavor, color in zip(ec2_flavors, ['green', 'orange', 'red']):
+    for flavor, color in zip(ec2_flavors, ['light', 'aqua', 'navy']):
         trace = go.Scatter(
             x=[cost["reqs_per_second"] for cost in costs],
             y=[cost[f'ec2_{flavor}_cost'] for cost in costs],
             name=f'EC2 {flavor}',
-            marker=dict(color=color)
+            marker=BBVAcolors[color]
         )
         data.append(trace)
 

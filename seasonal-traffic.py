@@ -45,7 +45,8 @@ def draw(traffic):
     data.append(trace)
 
     layout = go.Layout(
-        title=f'<b>Traffic distribution</b><br>'
+        title=f'<b>IoT traffic distribution with seasonal surges'
+        ' at beginning and the end of month</b><br>'
         '<i>Devices: 1m, '
         'Request period: 1h, '
         'Interval: 30 days, '

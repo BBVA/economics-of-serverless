@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from functools import reduce, partial
+from functools import reduce
 import plotly
 import plotly.graph_objs as go
 import awscosts
@@ -36,31 +36,20 @@ def aggregate_costs(
         reset_free_tier=True
     )
 
-    # To-Do: delete this func and use directly
-    # awscosts.ec2.get_cost_and_num_instances
-    def calc_ec2_instance_use(num_hits, ec2_instance, resolution=0):
-        (cost, num_instances) = ec2_instance.get_cost_and_num_instances(
-            resolution,
-            num_hits * resolution,
-        )
-        return (num_instances, cost)
-
     for ec2_instance in ec2_instances_list:
-
-        devices_time_series = \
-            [num_devices // req_period] * (interval_duration // resolution)
-
-        calc_by_instance = partial(
-            calc_ec2_instance_use,
-            ec2_instance=ec2_instance,
-            resolution=resolution,
+        (cost, num_instances) = ec2_instance.get_cost_and_num_instances(
+            seconds=resolution,
+            reqs=(num_devices // req_period) * resolution
         )
+        costs_time_series = \
+            [(cost, num_instances)] * (interval_duration // resolution)
 
-        costs_time_series = map(calc_by_instance, devices_time_series)
-
-        instances, cost = reduce(lambda x, y: (
-            max(x[0], y[0]), x[1] + y[1]),
-            costs_time_series, (0, 0)
+        cost, instances = reduce(
+            lambda x, y: (
+                x[0] + y[0], max(x[1], y[1])
+            ),
+            costs_time_series,
+            (0, 0)
         )
 
         costs.update({

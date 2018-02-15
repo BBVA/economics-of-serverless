@@ -63,7 +63,12 @@ def draw(traffic):
     )
 
     fig = go.Figure(data=data, layout=layout)
-    plotly.offline.plot(fig)
+    plotly.offline.plot(
+        fig,
+        image='png',
+        image_width=800,
+        image_height=800,
+    )
 
 
 def main():

@@ -13,20 +13,10 @@
 # limitations under the License.
 
 from functools import reduce, partial
-from iot.simulator import *
 import plotly
 import plotly.graph_objs as go
 import awscosts
 from bbva_colors import BBVAcolors
-
-
-def generate_requests_time_series(
-    num_devices,
-    request_period,
-    interval_duration,
-    resolution
-):
-    return [num_devices // request_period] * (interval_duration // resolution)
 
 
 def aggregate_costs(
@@ -36,7 +26,6 @@ def aggregate_costs(
     num_devices,
     lambda_instance,
     ec2_instances_list,
-    devices_time_series,
 ):
     costs = {'resolution_buckets': 0, 'hits': 0, 'lambda': 0}
     costs['resolution_buckets'] = interval_duration // resolution
@@ -57,15 +46,23 @@ def aggregate_costs(
         return (num_instances, cost)
 
     for ec2_instance in ec2_instances_list:
+
+        devices_time_series = \
+            [num_devices // req_period] * (interval_duration // resolution)
+
         calc_by_instance = partial(
             calc_ec2_instance_use,
             ec2_instance=ec2_instance,
             resolution=resolution,
         )
+
+        costs_time_series = map(calc_by_instance, devices_time_series)
+
         instances, cost = reduce(lambda x, y: (
             max(x[0], y[0]), x[1] + y[1]),
-            map(calc_by_instance, devices_time_series), (0, 0)
+            costs_time_series, (0, 0)
         )
+
         costs.update({
             f'ec2_{ec2_instance._instance_type}_cost': cost,
             f'ec2_{ec2_instance._instance_type}_instances': instances
@@ -102,7 +99,7 @@ def draw_costs_by_num_devices(
     layout = go.Layout(
         title=f'<b>Monthly cost by number of requests per second</b><br>' +
         f'<i>(request period: {req_period} seconds)</i></b>',
-        legend=dict(orientation='v'),
+        legend=dict(orientation='h'),
         width=1000,
         height=800,
         xaxis=dict(
@@ -151,12 +148,6 @@ def main():
                 lambda_memory,
                 lambda_request_duration_ms
             )
-            time_series = generate_requests_time_series(
-                num_devices,
-                req_period,
-                interval_duration,
-                resolution
-            )
             cost = aggregate_costs(
                 req_period,
                 resolution,
@@ -164,7 +155,6 @@ def main():
                 num_devices,
                 lambda_instance,
                 ec2_instances,
-                time_series
             )
 
             print(

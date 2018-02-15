@@ -47,12 +47,13 @@ def aggregate_costs(
         reset_free_tier=True
     )
 
-    def calc_ec2_instance_use(num_hits, ec2_instance=None, resolution=0):
-        # the cost of one fixed instance plus the cost of the auto-scaled ones
-        num_instances = max(1, ec2_instance.get_num_instances(num_hits))
-        # we accumulate only auto-scaled instances (>1)
-        cost = (ec2_instance._cost_per_hour / 3600) * \
-            resolution * num_instances
+    # To-Do: delete this func and use directly
+    # awscosts.ec2.get_cost_and_num_instances
+    def calc_ec2_instance_use(num_hits, ec2_instance, resolution=0):
+        (cost, num_instances) = ec2_instance.get_cost_and_num_instances(
+            resolution,
+            num_hits * resolution,
+        )
         return (num_instances, cost)
 
     for ec2_instance in ec2_instances_list:

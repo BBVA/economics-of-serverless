@@ -20,7 +20,7 @@ import awscosts
 from bbva_colors import BBVAcolors
 
 
-def generate_requests_time_serie(
+def generate_requests_time_series(
     num_devices,
     request_period,
     interval_duration,
@@ -36,7 +36,7 @@ def aggregate_costs(
     num_devices,
     lambda_instance,
     ec2_instances_list,
-    devices_time_serie,
+    devices_time_series,
 ):
     costs = {'resolution_buckets': 0, 'hits': 0, 'lambda': 0}
     costs['resolution_buckets'] = interval_duration // resolution
@@ -64,7 +64,7 @@ def aggregate_costs(
         )
         instances, cost = reduce(lambda x, y: (
             max(x[0], y[0]), x[1] + y[1]),
-            map(calc_by_instance, devices_time_serie), (0, 0)
+            map(calc_by_instance, devices_time_series), (0, 0)
         )
         costs.update({
             f'ec2_{ec2_instance._instance_type}_cost': cost,
@@ -151,7 +151,7 @@ def main():
                 lambda_memory,
                 lambda_request_duration_ms
             )
-            time_serie = generate_requests_time_serie(
+            time_series = generate_requests_time_series(
                 num_devices,
                 req_period,
                 interval_duration,
@@ -164,7 +164,7 @@ def main():
                 num_devices,
                 lambda_instance,
                 ec2_instances,
-                time_serie
+                time_series
             )
 
             print(

@@ -24,7 +24,7 @@ import awscosts
 from bbva_colors import BBVAcolors
 
 
-def generate_requests_time_serie(num_devices, request_period, interval_duration, resolution):
+def generate_requests_time_series(num_devices, request_period, interval_duration, resolution):
     mean = num_devices // request_period
     result = list()
     for i in range(0,(interval_duration//resolution)):
@@ -41,7 +41,7 @@ def generate_requests_time_serie(num_devices, request_period, interval_duration,
     return result
     #return [num_devices // request_period] * (interval_duration//resolution)
 
-def aggregate_costs(req_period, resolution, interval_duration, num_devices, lambda_instance, ec2_instances_list, devices_time_serie):
+def aggregate_costs(req_period, resolution, interval_duration, num_devices, lambda_instance, ec2_instances_list, devices_time_series):
     costs = {'resolution_buckets':0, 'hits':0, 'lambda':0}
     costs['resolution_buckets'] = interval_duration // resolution
     costs['hits'] = num_devices * (interval_duration // req_period)
@@ -55,7 +55,7 @@ def aggregate_costs(req_period, resolution, interval_duration, num_devices, lamb
 
     for ec2_instance in ec2_instances_list:
         calc_by_instance = partial(calc_ec2_instance_use, ec2_instance = ec2_instance, resolution = resolution)
-        instances,cost = reduce(lambda x, y:  (max(x[0],y[0]), x[1] + y[1]), map(calc_by_instance, devices_time_serie), (0, 0))
+        instances,cost = reduce(lambda x, y:  (max(x[0],y[0]), x[1] + y[1]), map(calc_by_instance, devices_time_series), (0, 0))
         costs.update({
             f'ec2_{ec2_instance._instance_type}_cost':cost,
             f'ec2_{ec2_instance._instance_type}_instances': instances
@@ -126,8 +126,8 @@ def main():
         costs = []
         for num_devices in num_devices_list:
             lambda_instance = awscosts.Lambda(lambda_memory, lambda_request_duration_ms)
-            time_serie = generate_requests_time_serie(num_devices, req_period, interval_duration, resolution)
-            cost = aggregate_costs(req_period, resolution, interval_duration, num_devices, lambda_instance, ec2_instances, time_serie)
+            time_series = generate_requests_time_series(num_devices, req_period, interval_duration, resolution)
+            cost = aggregate_costs(req_period, resolution, interval_duration, num_devices, lambda_instance, ec2_instances, time_series)
 
             print(cost['hits'], cost['reqs_per_second'], cost['lambda'], cost['ec2_m3.medium_cost'] * cost[f'ec2_m3.medium_instances'], cost['ec2_m4.large_cost'] * cost[f'ec2_m4.large_instances'], cost['ec2_m4.4xlarge_cost']*cost[f'ec2_m4.4xlarge_instances'])
 

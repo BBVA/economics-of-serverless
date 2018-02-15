@@ -37,7 +37,8 @@ def draw(traffic):
     data = []
 
     trace = go.Scatter(
-        x=list(range(len(traffic))),
+        # FIXME: 300 is actually the resolution
+        x=[300 * i for i in range(len(traffic))],
         y=traffic,
         name='Lambda'
     )

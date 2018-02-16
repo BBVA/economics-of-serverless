@@ -48,14 +48,27 @@ def aggregate_costs(req_period, resolution, interval_duration, num_devices, lamb
     costs['reqs_per_second'] = costs['hits'] / interval_duration
     costs['lambda'] = lambda_instance.get_cost(costs['hits'], reset_free_tier=True)
 
-    def calc_ec2_instance_use(num_hits, ec2_instance = None, resolution = 0):
-        num_instances = max(1,ec2_instance.get_num_instances(num_hits)) # the cost of one fixed instance plus the cost of the auto-scaled ones
-        cost = (ec2_instance._cost_per_hour/3600) * resolution *  num_instances # we accumulate only auto-scaled instances (>1)
-        return (num_instances, cost)
+    def calc_ec2_instance_use(num_hits, ec2_instance, resolution=0):
+        return ec2_instance.get_cost_and_num_instances(
+            resolution,
+            num_hits * resolution,
+        )
 
     for ec2_instance in ec2_instances_list:
-        calc_by_instance = partial(calc_ec2_instance_use, ec2_instance = ec2_instance, resolution = resolution)
-        instances,cost = reduce(lambda x, y:  (max(x[0],y[0]), x[1] + y[1]), map(calc_by_instance, devices_time_series), (0, 0))
+        calc_by_instance = partial(
+            calc_ec2_instance_use,
+            ec2_instance=ec2_instance,
+            resolution=resolution
+        )
+
+        cost, instances = reduce(
+            lambda x, y: (
+                x[0] + y[0], max(x[1], y[1])
+            ),
+            map(calc_by_instance, time_series),
+            (0, 0)
+        )
+
         costs.update({
             f'ec2_{ec2_instance._instance_type}_cost':cost,
             f'ec2_{ec2_instance._instance_type}_instances': instances

@@ -23,7 +23,7 @@ def main():
     # [10, 50, 100, 500, 1000, 5000, 10000, 50000, 100000, 500000, 1000000,
     # 5000000, 10000000]
     num_devices_list = reduce(lambda_tools.devices_func, range(1, 13), [10])
-    num_devices_list = list(range(200000, 10000000, 100000))
+    num_devices_list = list(range(100000, 200000000, 100000))
     resolution = 60 * 5  # in seconds
     interval_duration = 30 * 24 * 3600  # one month in seconds
     lambda_memory = 128

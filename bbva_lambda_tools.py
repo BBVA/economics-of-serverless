@@ -98,7 +98,10 @@ def draw_costs_by_num_devices(
     layout = go.Layout(
         title=f'<b>Monthly cost by number of requests per second</b><br>' +
         f'<i>(request period: {req_period} seconds)</i></b>',
-        legend=dict(orientation='h'),
+        legend=dict(
+            orientation="h",
+            y=-.2,
+        ),
         width=1000,
         height=800,
         xaxis=dict(

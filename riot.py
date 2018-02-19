@@ -15,6 +15,7 @@
 from functools import reduce
 import awscosts
 import bbva_lambda_tools as lambda_tools
+from plotly.offline import plot
 
 
 def main():
@@ -62,12 +63,13 @@ def main():
 
             costs.append(cost)
 
-        lambda_tools.draw_costs_by_num_devices(
+        figure = lambda_tools.draw_costs_by_num_devices(
             costs,
             num_devices_list,
             ec2_flavors,
             req_period
         )
+        plot(figure)
 
 
 if __name__ == "__main__":

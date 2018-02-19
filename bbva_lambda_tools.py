@@ -1,5 +1,4 @@
 from functools import reduce, partial
-import plotly
 import plotly.graph_objs as go
 from bbva_colors import BBVAcolors
 
@@ -75,7 +74,7 @@ def draw_costs_by_num_devices(
     costs,
     num_devices_list,
     ec2_flavors,
-    req_period
+    req_period,
 ):
     data = []
 
@@ -112,5 +111,4 @@ def draw_costs_by_num_devices(
         )
     )
 
-    fig = go.Figure(data=data, layout=layout)
-    plotly.offline.plot(fig)
+    return go.Figure(data=data, layout=layout)

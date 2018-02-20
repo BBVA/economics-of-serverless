@@ -16,6 +16,7 @@ plotly = "*"
 pytest = "*"
 jupyter = "*"
 ipywidgets = "*"
+matplotlib = "*"
 
 
 [dev-packages]

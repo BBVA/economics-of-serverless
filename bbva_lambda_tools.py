@@ -72,9 +72,8 @@ def aggregate_costs(
 
 def draw_costs_by_num_devices(
     costs,
-    num_devices_list,
     ec2_flavors,
-    req_period,
+    req_period=None,
 ):
     data = []
 
@@ -95,9 +94,12 @@ def draw_costs_by_num_devices(
         )
         data.append(trace)
 
+    title = f'<b>Monthly cost by number of requests per second</b><br>'
+    if req_period is not None:
+        title +=  f'<i>(request period: {req_period} seconds)</i></b>'
+
     layout = go.Layout(
-        title=f'<b>Monthly cost by number of requests per second</b><br>' +
-        f'<i>(request period: {req_period} seconds)</i></b>',
+        title=title,
         legend=dict(
             orientation="h",
             y=-.2,

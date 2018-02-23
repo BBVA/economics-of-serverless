@@ -114,6 +114,51 @@ def find_breakeven(df: pd.DataFrame, flavor):
     return breakeven_df['req_sum'][0]
 
 
+def get_monthly_cost(
+    requests_df: pd.DataFrame,
+    factor_list: list,
+    ec2_flavors: dict,
+    lambda_flavor: dict,
+    throughput_ratio=1,
+):
+    # simulate and calculate costs for several factors:
+    cost_points = dict.fromkeys(ec2_flavors + ('lambda', ))
+    cost_points['lambda'] = list()
+    for flavor in ec2_flavors:
+        cost_points[flavor] = list()
+
+    for factor in factor_list:
+        month_df = simulate(requests_df, monthly_scale_factor=factor)
+
+        # calculate costs for Lambda:
+        month_df = get_lambda_cost(
+            month_df,
+            MB_per_request=lambda_flavor['memory'],
+            ms_per_req=lambda_flavor['exec_time'],
+        )
+
+        cost_points['lambda'].append(
+            month_df['lambda_sum'].iloc[-1]
+        )
+
+        # calculate costs for EC2 instances:
+        for flavor in ec2_flavors:
+            month_df = get_ec2_cost(
+                month_df,
+                flavor=flavor,
+                MB_per_req=lambda_flavor['memory'],
+                ms_per_req=lambda_flavor['exec_time'],
+                throughput_ratio=throughput_ratio,
+            )
+
+            cost_points[flavor].append(
+                month_df[f'{flavor}_sum'].iloc[-1]
+            )
+
+    mean_reqs_per_second = [x / float(28 * 24 * 60 * 60) for x in factor_list]
+    return list(mean_reqs_per_second), cost_points
+
+
 def get_breakeven(
     df: pd.DataFrame,
     factor_list: list,

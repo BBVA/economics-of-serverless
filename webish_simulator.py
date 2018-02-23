@@ -19,7 +19,24 @@ import numpy as np
 
 
 def simulate(df: pd.DataFrame, monthly_scale_factor=None):
+    """ Builds a synthetic month of requests using an input DataFrame
 
+    Using a dataframe with a date index, collapses the whole dataframe to build
+    a synthetic month. The original dataframe can have an arbitrary number of
+    rows. The more rows, the longer timespan (i.e. months, years...) to compute
+    average values per hour un a month. The resulting dataframe has a column
+    with the accumulative sum of the previous rows.
+    Args:
+        df (pandas.DataFrame): Dataframe (datetime index) with requests in a
+            given period. Needs a column called 'hits'.
+        monthly_scale_factor (int): factor to multiply to the normalized
+            requests values in each row of the requests DataFrame. Normally
+            it's the total number of requests in a month.
+
+    Returns:
+        Synthetic 30-day DataFrame (1 hour per row) with requests
+
+    """
     # prepare DF fields
     df['hits'] = df['hits'].astype(float)
     df['weekday'] = df.index.weekday_name
@@ -70,6 +87,24 @@ def simulate(df: pd.DataFrame, monthly_scale_factor=None):
 
 
 def get_lambda_cost(df: pd.DataFrame, MB_per_request=128, ms_per_req=200):
+    """ Given a Dataframe with requests per time unit, calculates the AWS
+            Lambda costs for each row.
+
+    Args:
+        df (pandas.Dataframe): Dataframe with requests for each time unit per
+            row.
+        MB_per_request (int): memory consumption (in MiB) of the lambda
+            function. If this values is not an actual AWS flavour, a greater
+            valid one will be chosen.
+        ms_per_req (int): duration of the lambda function in miliseconds
+
+    Returns:
+        The same DataFrame with two new columns:
+            'lambda_cost': Cost of the requests in that row.
+            'lambda_sum': Accumulative cost of this and the previous rows.
+
+    """
+
     mylambda = awscosts.Lambda(
         MB_per_req=MB_per_request,
         ms_per_req=ms_per_req
@@ -87,6 +122,23 @@ def get_lambda_cost(df: pd.DataFrame, MB_per_request=128, ms_per_req=200):
 
 
 def get_ec2_cost(df: pd.DataFrame, flavor, **kwargs):
+    """ Given a Dataframe with requests per time unit, calculates the EC2 costs
+        for each row.
+
+    Args:
+        df (pandas.Dataframe): Dataframe with requests for each time unit per
+            row.
+        flavor (str): A valid EC2 instance flavor name (e.g. 'm4.large').
+        **kwargs: Keyword arguments to the awscosts.EC2 object (see awscosts
+            package)
+
+    Returns:
+        The same DataFrame with two new columns:
+            'FLAVOR': Cost of this period (row) to process the given requests.
+            'FLAVOR_instances': Number of instances needed to process the
+                requests in that row. FLAVOR is the actual name of the flavor.
+            'FLAVOR_sum': Accumulative cost of this and the previous rows.
+    """
 
     myec2 = awscosts.EC2(instance_type=flavor, **kwargs)
     df[flavor] = df.apply(

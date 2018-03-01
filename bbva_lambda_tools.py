@@ -1,6 +1,7 @@
 from functools import reduce, partial
 import plotly.graph_objs as go
 from bbva_colors import BBVAcolors
+import awscosts
 
 
 def devices_func(acc, i):
@@ -9,6 +10,121 @@ def devices_func(acc, i):
     else:
         acc.append(acc[i - 1] * 5)
     return acc
+
+
+def generate_costs_in_month(
+    requests_range,
+    flavors, memory,
+    time,
+    throughput_ratio=1
+):
+    """Generates EC2 and Lambda costs in a month by a list of requests per
+    second.
+
+    Args:
+        requests_range (:obj:`list` of :obj:`int`): list of reqs/s.
+        flavors (:obj:`list` of :obj:`str`): list of valid EC2 flavors.
+        memory
+        time (int): duration (in milliseconds) of the Lambda request.
+        throughput_ratio (int, optional): 1
+
+    Returns:
+        Cost dict:
+            - 'lambda':
+                - REQS/S_1: COST_IN_DOLLARS
+                - REQS/S_2: COST_IN_DOLLARS
+                ...
+                - REQS/S_n: COST_IN_DOLLARS
+            - FLAVOR_1:
+                - REQS/S_1: COST_IN_DOLLARS
+                ...
+            ...
+
+    """
+    cost = dict()
+    SECONDS_IN_A_MONTH = 3600 * 24 * 30
+    # generate costs for EC2 instances:
+    for flavor in flavors:
+        myec2 = awscosts.EC2(
+            flavor,
+            MB_per_req=memory,
+            ms_per_req=time,
+            throughput_ratio=throughput_ratio,
+        )
+        cost[flavor] = dict()
+        for reqs_per_second in requests_range:
+            cost[flavor][reqs_per_second] = \
+                myec2.get_cost_per_second(reqs_per_second) * SECONDS_IN_A_MONTH
+
+    # generate costs for Lambda:
+    mylambda = awscosts.Lambda(
+        MB_per_req=memory,
+        ms_per_req=time,
+    )
+    cost['lambda'] = dict()
+    for reqs_per_second in requests_range:
+        requests_per_month = reqs_per_second * SECONDS_IN_A_MONTH
+        cost['lambda'][reqs_per_second] = \
+            mylambda.get_cost(requests_per_month, reset_free_tier=True)
+
+    return cost
+
+
+def draw_costs_by_requests(costs):
+    """Generates a Plotly plot object from a cost structure
+
+        Args:
+            costs (:obj): Cost data structure with flavors and costs in a month
+                per request/s value
+
+        Returns:
+            :obj:`plotly.graph_objs.Figure`
+
+    """
+    title = 'Monthy cost by number of reqs/s'
+    data = []
+
+    color = iter([
+        BBVAcolors['light'],
+        BBVAcolors['aqua'],
+        BBVAcolors['navy'],
+        BBVAcolors['coral']
+    ])
+
+    for flavor in costs.keys():
+        x = list()
+        y = list()
+        for reqs, price in costs[flavor].items():
+            x.append(reqs)
+            y.append(price)
+
+        trace = go.Scatter(
+            x=x,
+            y=y,
+            name=flavor,
+            marker=next(color)
+        )
+        data.append(trace)
+
+    layout = go.Layout(
+        title=title,
+        legend=dict(
+            orientation="h",
+            y=-.2,
+        ),
+        width=950,
+        height=500,
+        xaxis=dict(
+            title='<b>reqs/sec</b>',
+            type='log'
+        ),
+        yaxis=dict(
+            title='<b>Monthly cost ($)</b>',
+            type='log'
+        )
+    )
+
+    return go.Figure(data=data, layout=layout)
 
 
 def aggregate_costs(

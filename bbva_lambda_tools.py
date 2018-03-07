@@ -70,18 +70,23 @@ def generate_costs_in_month(
     return cost
 
 
-def draw_costs_by_requests(costs):
+def draw_costs_by_requests(costs, **kwargs):
     """Generates a Plotly plot object from a cost structure
 
         Args:
             costs (:obj): Cost data structure with flavors and costs in a month
                 per request/s value
+            **title (str, optional): Plot title.
 
         Returns:
             :obj:`plotly.graph_objs.Figure`
 
     """
-    title = 'Monthy cost by number of reqs/s'
+
+    if 'title' in kwargs:
+        title = kwargs['title']
+    else:
+        title = 'Monthy cost by number of reqs/s'
     data = []
 
     color = iter([
@@ -115,11 +120,11 @@ def draw_costs_by_requests(costs):
         width=950,
         height=500,
         xaxis=dict(
-            title='<b>reqs/sec</b>',
+            title='reqs/sec',
             type='log'
         ),
         yaxis=dict(
-            title='<b>Monthly cost ($)</b>',
+            title='Monthly cost ($)',
             type='log'
         )
     )
@@ -210,9 +215,9 @@ def draw_costs_by_num_devices(
         )
         data.append(trace)
 
-    title = f'<b>Monthly cost by number of requests per second</b><br>'
+    title = f'Monthly cost by number of requests per second<br>'
     if req_period is not None:
-        title +=  f'<i>(request period: {req_period} seconds)</i></b>'
+        title += f'<i>(request period: {req_period} seconds)</i></b>'
 
     layout = go.Layout(
         title=title,
@@ -223,11 +228,11 @@ def draw_costs_by_num_devices(
         width=1000,
         height=800,
         xaxis=dict(
-            title='<b>Number of reqs/sec</b>',
+            title='Number of reqs/sec',
             type='log'
         ),
         yaxis=dict(
-            title='<b>Monthly cost ($)</b>',
+            title='Monthly cost ($)',
             type='log'
         )
     )

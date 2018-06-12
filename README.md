@@ -17,7 +17,7 @@
 Run pipenv in `dev` mode with : `pipenv install --dev`
 
 ## Docker execution environment (optional)
-### Requiremens:
+### Requirements:
 * Python3 + Pip
 
 ### Executing the jupyter notebook:
